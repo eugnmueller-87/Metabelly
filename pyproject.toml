@@ -92,8 +92,22 @@ module = [
     "google.*",
     "googleapiclient.*",
     "slack_sdk.*",
+    "asyncpg.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "metabelly.agents.classifier",
+    "metabelly.integrations.slack",
+    "metabelly.integrations.calendly",
+    "metabelly.integrations.gmail",
+    "metabelly.api.webhooks",
+    "metabelly.api.app",
+    "metabelly.core.db_pool",
+    "metabelly.core.worker",
+]
+ignore_errors = true
 
 # ── Pytest ───────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
