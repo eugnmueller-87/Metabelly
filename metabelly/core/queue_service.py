@@ -10,14 +10,20 @@ from metabelly.core.encryption import encrypt
 logger = logging.getLogger(__name__)
 
 INSERT_EMAIL = """
-INSERT INTO email_queue (gmail_id, sender_email, content_encrypted)
-VALUES ($1, $2, $3)
+INSERT INTO email_queue (gmail_id, thread_id, sender_email, subject, content_encrypted)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (gmail_id) DO NOTHING
 RETURNING id;
 """
 
 
-async def enqueue(gmail_id: str, sender_email: str, content: str) -> bool:
+async def enqueue(
+    gmail_id: str,
+    thread_id: str,
+    sender_email: str,
+    subject: str,
+    content: str,
+) -> bool:
     """
     Returns True if queued, False if duplicate (already seen this gmail_id).
     Caller must pass a sanitized, truncated content string.
@@ -27,7 +33,7 @@ async def enqueue(gmail_id: str, sender_email: str, content: str) -> bool:
     encrypted = encrypt(content)
 
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(INSERT_EMAIL, gmail_id, sender_email, encrypted)
+        row = await conn.fetchrow(INSERT_EMAIL, gmail_id, thread_id, sender_email, subject, encrypted)
 
     if row is None:
         log(AuditEvent.EMAIL_DUPLICATE, Severity.INFO,

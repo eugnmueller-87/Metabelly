@@ -43,6 +43,7 @@ class AuditEvent(str, Enum):
     EMAIL_QUEUED          = "email_queued"
     EMAIL_DUPLICATE       = "email_duplicate"
     EMAIL_CLASSIFIED      = "email_classified"
+    AUTO_REPLY_SENT       = "auto_reply_sent"
     EMAIL_FAILED          = "email_failed"
     EMAIL_PERMANENTLY_FAILED = "email_permanently_failed"
 

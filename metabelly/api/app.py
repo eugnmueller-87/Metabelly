@@ -36,13 +36,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             worker = QueueWorker(
                 db=conn,
                 classifier=classifier,
-                on_result=lambda gmail_id, result: dispatcher.handle(
-                    gmail_id=gmail_id,
-                    sender_email="",   # fetched from DB in full impl
-                    subject="",
-                    thread_id="",
+                on_result=lambda gid, email, subj, tid, result, qid: dispatcher.handle(
+                    gmail_id=gid,
+                    sender_email=email,
+                    subject=subj,
+                    thread_id=tid,
                     result=result,
-                    queue_item_id=gmail_id,
+                    queue_item_id=qid,
                 ),
             )
 

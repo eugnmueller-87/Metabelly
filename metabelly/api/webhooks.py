@@ -61,7 +61,9 @@ async def gmail_webhook(
 
     await enqueue(
         gmail_id=parsed.message_id,
+        thread_id=parsed.thread_id,
         sender_email=parsed.sender_email,
+        subject=parsed.subject,
         content=safe_content,
     )
 

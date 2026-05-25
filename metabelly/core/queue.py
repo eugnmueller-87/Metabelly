@@ -15,7 +15,9 @@ class QueueStatus(str, Enum):
 class QueueItem(BaseModel):
     id: UUID = uuid4()
     gmail_id: str
+    thread_id: str
     sender_email: str
+    subject: str
     content_encrypted: str          # raw email body, encrypted at rest
     status: QueueStatus = QueueStatus.PENDING
     attempts: int = 0

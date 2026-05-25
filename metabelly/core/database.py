@@ -7,7 +7,9 @@ CREATE_QUEUE_TABLE = """
 CREATE TABLE IF NOT EXISTS email_queue (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     gmail_id        TEXT UNIQUE NOT NULL,
+    thread_id       TEXT NOT NULL,
     sender_email    TEXT NOT NULL,
+    subject         TEXT NOT NULL DEFAULT '',
     content_encrypted TEXT NOT NULL,
     status          TEXT NOT NULL DEFAULT 'pending'
                         CHECK (status IN ('pending','processing','done','failed')),
