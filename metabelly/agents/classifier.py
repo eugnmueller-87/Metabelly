@@ -1,9 +1,12 @@
 import json
+import logging
 
-from mistralai import Mistral
+from mistralai.client import Mistral
 
 from metabelly.core.config import settings
 from metabelly.core.models import TriageResult
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """You are a triage assistant for Metabelly, a Croatian gut health company
 selling fiber supplements and microbiome analysis. You classify incoming customer messages.

@@ -16,6 +16,8 @@ dependencies = [
     "google-api-python-client>=2.196.0",
     "google-auth-httplib2>=0.4.0",
     "google-auth-oauthlib>=1.4.0",
+    "slack-sdk>=3.42.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]

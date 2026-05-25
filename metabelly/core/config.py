@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     google_refresh_token: str = ""
     google_pubsub_topic: str = ""
 
+    # Calendly
+    calendly_api_key: str = ""
+
     # Database
     database_url: str = ""
 

@@ -1,6 +1,7 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,17 +12,65 @@ from metabelly.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+WATCH_RENEWAL_INTERVAL = 6 * 24 * 60 * 60  # 6 days — Gmail watch expires every 7
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    tasks: list[asyncio.Task] = []
+
     if settings.database_url:
-        from metabelly.core.db_pool import init_pool, close_pool
+        from metabelly.core.db_pool import close_pool, init_pool
         await init_pool()
         logger.info("Database pool ready")
-        yield
+
+        from metabelly.agents.classifier import TriageClassifier
+        from metabelly.core.dispatcher import Dispatcher
+        from metabelly.core.worker import QueueWorker
+
+        dispatcher = Dispatcher()
+        classifier = TriageClassifier()
+
+        from metabelly.core.db_pool import pool
+        async with pool.acquire() as conn:
+            worker = QueueWorker(
+                db=conn,
+                classifier=classifier,
+                on_result=lambda gmail_id, result: dispatcher.handle(
+                    gmail_id=gmail_id,
+                    sender_email="",   # fetched from DB in full impl
+                    subject="",
+                    thread_id="",
+                    result=result,
+                    queue_item_id=gmail_id,
+                ),
+            )
+
+        tasks.append(asyncio.create_task(worker.start()))
+        tasks.append(asyncio.create_task(_watch_renewal_loop()))
+        logger.info("Worker and watch renewal started")
+
+    yield
+
+    for task in tasks:
+        task.cancel()
+
+    if settings.database_url:
+        from metabelly.core.db_pool import close_pool
         await close_pool()
-    else:
-        yield  # dev mode without DB
+
+    logger.info("Shutdown complete")
+
+
+async def _watch_renewal_loop() -> None:
+    while True:
+        await asyncio.sleep(WATCH_RENEWAL_INTERVAL)
+        try:
+            from metabelly.integrations.gmail import GmailClient
+            GmailClient().renew_watch(settings.google_pubsub_topic)
+            logger.info("Gmail watch renewed")
+        except Exception:
+            logger.exception("Gmail watch renewal failed")
 
 
 app = FastAPI(
@@ -35,7 +84,7 @@ app.middleware("http")(security_middleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],   # no browser access — webhooks only
+    allow_origins=[],
     allow_methods=["POST"],
 )
 

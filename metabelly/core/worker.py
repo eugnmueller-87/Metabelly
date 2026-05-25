@@ -1,17 +1,18 @@
 import asyncio
 import logging
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
 import asyncpg
 
 from metabelly.agents.classifier import TriageClassifier
 from metabelly.core.database import MARK_DONE, MARK_FAILED, PICK_NEXT_PENDING, RESET_STUCK
+from metabelly.core.encryption import decrypt
 from metabelly.core.models import TriageResult
 
 logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
-POLL_INTERVAL = 10  # seconds between polls when queue is empty
+POLL_INTERVAL = 10
 
 
 class QueueWorker:
@@ -23,7 +24,7 @@ class QueueWorker:
     ) -> None:
         self._db = db
         self._classifier = classifier
-        self._on_result = on_result  # caller decides what to do with each result
+        self._on_result = on_result
         self._running = False
 
     async def start(self) -> None:
@@ -51,7 +52,7 @@ class QueueWorker:
         logger.info("Processing queue item %s (attempt %d)", item_id, attempts)
 
         try:
-            content = _decrypt(row["content_encrypted"])
+            content = decrypt(row["content_encrypted"])
             result = self._classifier.classify(content)
             await self._on_result(gmail_id, result)
             await self._db.execute(MARK_DONE, item_id)
@@ -62,7 +63,6 @@ class QueueWorker:
                 await self._db.execute(MARK_FAILED, item_id)
                 logger.error("Item %s permanently failed after %d attempts", item_id, MAX_ATTEMPTS)
             else:
-                # back to pending — will be retried next poll
                 await self._db.execute(
                     "UPDATE email_queue SET status = 'pending' WHERE id = $1", item_id
                 )
@@ -71,8 +71,3 @@ class QueueWorker:
 
     async def _reset_stuck(self) -> None:
         await self._db.execute(RESET_STUCK)
-
-
-def _decrypt(value: str) -> str:
-    # placeholder — swap in Fernet or AWS KMS when storage is wired up
-    return value
