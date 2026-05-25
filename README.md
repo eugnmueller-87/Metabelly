@@ -1,8 +1,8 @@
 # Metabelly Triage System
 
-![Python](https://img.shields.io/badge/python-3.14-blue?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-asyncpg-336791?logo=postgresql&logoColor=white)
+![n8n](https://img.shields.io/badge/n8n-workflow-EA4B71?logo=n8n&logoColor=white)
+![Mistral AI](https://img.shields.io/badge/Mistral_AI-classifier-FF6B35?logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)
 ![Slack](https://img.shields.io/badge/Slack-notifications-4A154B?logo=slack&logoColor=white)
 ![License](https://img.shields.io/badge/license-private-lightgrey)
 
@@ -20,14 +20,14 @@ The team needed a way to instantly understand what kind of message came in, what
 
 ## What this system does
 
-Every incoming customer message is automatically processed end-to-end:
+Every incoming customer email is automatically processed end-to-end:
 
-1. **Email arrives** in the Metabelly inbox
-2. **The system picks it up** via Gmail push notifications
-3. **An AI agent classifies it** — category, priority, language, and whether it needs a human
-4. **A reply is drafted** where appropriate (FAQ answers, medical deflections)
-5. **The team is notified** in the right Slack channel with a structured summary
-6. **Everything is logged** with an append-only audit trail
+1. **Email arrives** in the Metabelly support inbox
+2. **The system picks it up** via Gmail
+3. **Luka classifies it** — category, priority, language, and whether it needs a human
+4. **A reply is drafted** where appropriate (FAQ answers, medical deflections with booking link)
+5. **Bruno notifies the team** in the right Slack channel with a structured summary
+6. **A daily briefing** is posted every weekday morning with the inbox status
 
 The human team sees only what requires their attention, in the right place, with context already prepared.
 
@@ -35,77 +35,67 @@ The human team sees only what requires their attention, in the right place, with
 
 ## The agents
 
-The system is built around a small team of specialized agents, each with a defined role:
-
 ### Luka — The Classifier
-Reads every incoming message and makes the first call: what kind of message is this, how urgent is it, what language is it in, does a human need to see it? Produces a structured triage result that drives everything downstream. Never touches raw PII in its output — summaries are always generic.
+Reads every incoming message and makes the first call: what kind of message is this, how urgent is it, what language is it in, does a human need to see it? Produces a structured triage result that drives everything downstream.
 
 ### Bruno — The Notifier
-Takes Luka's output and routes it to the right place. Urgent medical concerns go to one channel. Business leads go to another. Auto-resolved FAQs get a quiet FYI. Sends daily briefings with resolved/escalated counts, response times, and top topics.
+Takes Luka's output and routes it to the right Slack channel. Urgent medical concerns, business leads, order issues, and FAQs each go to their own channel. Sends a daily briefing every weekday morning.
 
-### Sven — The Queue Worker
-Manages the processing pipeline. Picks up emails one at a time, runs them through Luka, hands results to Bruno. Handles retries on failure, resets stuck jobs, and ensures no message is processed twice.
-
-### Maja — The Audit Logger
-Silently records every security-relevant event: incoming webhooks, signature checks, rate limit hits, injection attempts, processing outcomes. Append-only — nothing is ever updated or deleted. The paper trail.
+### Maja — The Composer
+Composes auto-replies in the customer's own language. FAQ questions get a helpful answer. Medical questions get a warm empathetic deflection plus a nutritionist booking link. P1 cases are always escalated to a human — no auto-reply.
 
 ---
 
-## Message categories and priorities
+## Message categories
 
 | Category | Description |
 |---|---|
-| `faq` | Product questions, ingredients, dosage, delivery, pricing |
-| `medical` | Specific diagnoses, symptoms, medication interactions, health conditions |
-| `business` | B2B, bulk orders, partnerships, clinics, media |
-| `order` | Coupon issues, payment problems, delivery tracking |
-| `spam` | Irrelevant or not a real inquiry |
+| `FAQ` | Product questions, ingredients, dosage, delivery, pricing |
+| `MEDICAL` | Diagnoses, symptoms, medication interactions, health conditions |
+| `BUSINESS` | B2B, bulk orders, partnerships, clinics, media |
+| `ORDER` | Coupon issues, payment problems, delivery tracking |
 
 | Priority | Meaning |
 |---|---|
-| P1 | Person in distress, medication interaction risk, serious health concern |
-| P2 | Revenue opportunity, qualified lead, media inquiry |
-| P3 | Order issue or technical problem needing resolution |
-| P4 | Standard FAQ — auto-resolvable |
-| P5 | Spam — silently dropped |
+| P1 | Person in distress or medication interaction risk — human only |
+| P2 | Needs human attention — medical, order, business |
+| P3 | Standard FAQ — auto-resolvable |
 
 ---
 
 ## Auto-reply behavior
 
-- **FAQ** — A helpful reply is drafted in the customer's own language
-- **Medical** — A warm, empathetic deflection is drafted: acknowledges the concern, explains Metabelly cannot provide medical advice, recommends consulting a doctor first, and offers a follow-up call after they have done so
-- **Business / Order / Spam** — No auto-reply; routed to the team
+- **FAQ (P3)** — A helpful reply in the customer's language, sent automatically
+- **Medical** — A warm deflection: acknowledges the concern, explains medical advice requires a professional, offers nutritionist booking link
+- **P1 (any category)** — No auto-reply, immediately escalated to the team
 
 ---
 
-## Architecture
+## Workflows (n8n)
 
 ```
-metabelly/
-├── agents/
-│   └── classifier.py         # Luka — triage classification agent
-├── api/
-│   ├── app.py                # FastAPI application
-│   ├── security.py           # Webhook signature verification, rate limiting
-│   └── webhooks.py           # Gmail push notification endpoint
-├── core/
-│   ├── models.py             # Pydantic data models
-│   ├── config.py             # Settings via environment variables
-│   ├── queue.py              # Queue table definitions
-│   ├── queue_service.py      # Sven — enqueue with deduplication
-│   ├── worker.py             # Sven — processing loop with retry logic
-│   ├── audit.py              # Maja — append-only audit log
-│   ├── encryption.py         # AES encryption for stored email content
-│   ├── database.py           # SQL query constants
-│   └── db_pool.py            # Async connection pool
-└── integrations/
-    ├── gmail.py              # Gmail API — fetch and reply
-    └── slack.py              # Bruno — Slack channel routing and briefings
+n8n-workflows/
+├── 01-email-triage.json      # Gmail trigger → Luka classifies → routes by category
+├── 02-slack-notify.json      # Bruno — sends to right Slack channel, P1 hits #triage-urgent
+├── 03-auto-reply.json        # Maja — composes and sends reply via Gmail
+└── 04-daily-briefing.json    # 8am weekdays → inbox count → post to #daily-briefing
 ```
+
+---
+
+## Slack channels
+
+| Channel | Purpose |
+|---|---|
+| `#triage-urgent` | P1 alerts — immediate human action required |
+| `#triage-medical` | Medical questions awaiting nutritionist response |
+| `#triage-orders` | Order and payment issues |
+| `#triage-business` | B2B leads and partnership inquiries |
+| `#triage-faq` | Auto-resolved FAQ confirmations |
+| `#daily-briefing` | Morning inbox summary |
 
 ---
 
 ## GDPR
 
-Message summaries never contain personal health details, names, or email addresses — only generic topic descriptions. Email content is encrypted at rest. The audit log records events, not message content.
+Message summaries never contain personal health details, names, or email addresses — only generic topic descriptions. The system processes email content in memory only and does not store raw message bodies.
