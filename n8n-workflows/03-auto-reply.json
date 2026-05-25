@@ -1,0 +1,103 @@
+{
+  "name": "03-auto-reply",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-input",
+      "name": "When Called by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "can-autoreply",
+              "leftValue": "={{ $json.requires_human }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "check-autoreply",
+      "name": "Can Auto-Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst calendlyNote = data.language === 'HR'\n  ? '\\n\\nAko imate dodatnih pitanja ili želite razgovarati s našim nutricionistom, slobodno zakažite termin: https://calendly.com/metabelly/nutritionist-20min'\n  : '\\n\\nIf you have further questions or would like to speak with our nutritionist, feel free to book a time: https://calendly.com/metabelly/nutritionist-20min';\n\nconst isMedical = data.category === 'MEDICAL';\nlet replyBody = data.auto_reply || '';\n\nif (isMedical) {\n  replyBody = data.language === 'HR'\n    ? `Hvala vam na povjerenju i što ste nam se obratili.\\n\\nVaše pitanje zahtijeva savjet stručnjaka, stoga ćemo ga proslijediti našem nutricionistom koji će vam odgovoriti u najkraćem mogućem roku.\\n\\nZa brži odgovor, možete zakazati konzultaciju:${calendlyNote}`\n    : `Thank you for reaching out to us.\\n\\nYour question requires expert advice, so we will forward it to our nutritionist who will get back to you as soon as possible.\\n\\nFor a faster response, you can book a consultation:${calendlyNote}`;\n} else if (replyBody && !isMedical) {\n  replyBody = replyBody + calendlyNote;\n}\n\nreturn [{ json: { ...data, finalReply: replyBody } }];"
+      },
+      "id": "compose-reply",
+      "name": "Maja — Compose Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.gmailId }}",
+        "threadId": "={{ $json.threadId }}",
+        "message": "={{ $json.finalReply }}",
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Send Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 180],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-metabelly",
+          "name": "Gmail — Metabelly Support"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#triage-faq" },
+        "text": "=✅ Auto-reply sent\\n*Od:* {{ $('Maja — Compose Reply').first().json.sender }}\\n*Predmet:* {{ $('Maja — Compose Reply').first().json.subject }}\\n*Kategorija:* {{ $('Maja — Compose Reply').first().json.category }}",
+        "otherOptions": {}
+      },
+      "id": "slack-fyi",
+      "name": "Slack FYI — Reply Sent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1120, 180],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-metabelly",
+          "name": "Slack — Metabelly"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Called by Another Workflow": {
+      "main": [[{ "node": "Can Auto-Reply?", "type": "main", "index": 0 }]]
+    },
+    "Can Auto-Reply?": {
+      "main": [
+        [{ "node": "Maja — Compose Reply", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Maja — Compose Reply": {
+      "main": [[{ "node": "Send Gmail Reply", "type": "main", "index": 0 }]]
+    },
+    "Send Gmail Reply": {
+      "main": [[{ "node": "Slack FYI — Reply Sent", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "metabelly" }]
+}

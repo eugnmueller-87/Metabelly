@@ -1,0 +1,83 @@
+{
+  "name": "04-daily-briefing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1-5" }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every Weekday at 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "q": "is:unread newer_than:1d"
+        },
+        "options": {
+          "format": "metadata"
+        }
+      },
+      "id": "fetch-unread",
+      "name": "Fetch Unread Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [460, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-metabelly",
+          "name": "Gmail — Metabelly Support"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emails = $input.all();\nconst count = emails.length;\n\nconst today = new Date().toLocaleDateString('hr-HR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\n\nconst message = `📊 *Metabelly Daily Briefing — ${today}*\\n\\n` +\n  `📬 Nepročitanih poruka: *${count}*\\n\\n` +\n  `_Dobro jutro! Pregledajte inbox i odgovorite na poruke koje čekaju._`;\n\nreturn [{ json: { message, count } }];"
+      },
+      "id": "build-briefing",
+      "name": "Build Briefing Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#daily-briefing" },
+        "text": "={{ $json.message }}",
+        "otherOptions": {}
+      },
+      "id": "post-briefing",
+      "name": "Post to #daily-briefing",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [900, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-metabelly",
+          "name": "Slack — Metabelly"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Weekday at 8am": {
+      "main": [[{ "node": "Fetch Unread Emails", "type": "main", "index": 0 }]]
+    },
+    "Fetch Unread Emails": {
+      "main": [[{ "node": "Build Briefing Message", "type": "main", "index": 0 }]]
+    },
+    "Build Briefing Message": {
+      "main": [[{ "node": "Post to #daily-briefing", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "metabelly" }]
+}

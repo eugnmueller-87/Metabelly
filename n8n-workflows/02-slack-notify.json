@@ -1,0 +1,102 @@
+{
+  "name": "02-slack-notify",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-input",
+      "name": "When Called by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst channelMap = {\n  MEDICAL: '#triage-medical',\n  ORDER: '#triage-orders',\n  BUSINESS: '#triage-business',\n  FAQ: '#triage-faq'\n};\n\nconst priorityEmoji = {\n  P1: '🚨',\n  P2: '⚠️',\n  P3: 'ℹ️'\n};\n\nconst channel = channelMap[data.category] || '#triage-faq';\nconst emoji = priorityEmoji[data.priority] || 'ℹ️';\n\nconst isUrgent = data.priority === 'P1';\nconst urgentPrefix = isUrgent ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst message = `${urgentPrefix}${emoji} *Nova poruka — ${data.category}* (${data.priority})\\n` +\n  `*Od:* ${data.sender}\\n` +\n  `*Predmet:* ${data.subject}\\n` +\n  `*Sažetak:* ${data.summary}\\n` +\n  `*Akcija:* ${data.suggested_action}\\n` +\n  `*Auto-odgovor poslan:* ${data.requires_human ? 'Ne — čeka odgovor' : 'Da'}`;\n\nreturn [{ json: { channel, message, ...data } }];"
+      },
+      "id": "prepare-slack",
+      "name": "Bruno — Prepare Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "expression", "value": "={{ $json.channel }}" },
+        "text": "={{ $json.message }}",
+        "otherOptions": {}
+      },
+      "id": "send-slack",
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [680, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-metabelly",
+          "name": "Slack — Metabelly"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "is-p1",
+              "leftValue": "={{ $('Bruno — Prepare Slack Message').first().json.priority }}",
+              "rightValue": "P1",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "check-p1",
+      "name": "Is P1 Urgent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#triage-urgent" },
+        "text": "=🚨 *P1 ALERT — Immediate attention required*\\n*Od:* {{ $('Bruno — Prepare Slack Message').first().json.sender }}\\n*Predmet:* {{ $('Bruno — Prepare Slack Message').first().json.subject }}\\n*Sažetak:* {{ $('Bruno — Prepare Slack Message').first().json.summary }}",
+        "otherOptions": {}
+      },
+      "id": "alert-urgent",
+      "name": "Alert #triage-urgent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1120, 180],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-metabelly",
+          "name": "Slack — Metabelly"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Called by Another Workflow": {
+      "main": [[{ "node": "Bruno — Prepare Slack Message", "type": "main", "index": 0 }]]
+    },
+    "Bruno — Prepare Slack Message": {
+      "main": [[{ "node": "Send Slack Notification", "type": "main", "index": 0 }]]
+    },
+    "Send Slack Notification": {
+      "main": [[{ "node": "Is P1 Urgent?", "type": "main", "index": 0 }]]
+    },
+    "Is P1 Urgent?": {
+      "main": [
+        [{ "node": "Alert #triage-urgent", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "metabelly" }]
+}

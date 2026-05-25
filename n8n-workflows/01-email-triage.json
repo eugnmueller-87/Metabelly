@@ -1,0 +1,175 @@
+{
+  "name": "01-email-triage",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "filters": {
+          "labelIds": ["INBOX"],
+          "q": "is:unread"
+        },
+        "options": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || '';\nconst subject = email.subject || '';\nconst sender = email.from || '';\nconst threadId = email.threadId || '';\nconst gmailId = email.id || '';\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000)\n  }\n}];"
+      },
+      "id": "extract-email",
+      "name": "Extract Email Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "model": "mistral-small-latest",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are Luka, a triage assistant for Metabelly — a Croatian gut health brand selling fiber supplements and microbiome analysis.\n\nClassify the customer message and return ONLY a JSON object with these fields:\n- category: one of FAQ, MEDICAL, ORDER, BUSINESS\n- priority: one of P1, P2, P3 (P1=urgent/medical emergency, P2=needs human, P3=can auto-reply)\n- language: HR or EN\n- summary: one sentence summary in English\n- requires_human: true or false\n- suggested_action: short action string\n- auto_reply: if requires_human is false, write a warm helpful reply in the same language as the customer. If requires_human is true, leave empty string.\n\nRules:\n- MEDICAL always requires_human=true unless it is a simple FAQ about ingredients\n- P1 always requires_human=true\n- FAQ about ingredients, dosage, delivery = P3, requires_human=false, write auto_reply\n- Medical conditions (IBS, cancer, Crohn's, pain) = P2 or P1, requires_human=true\n- ORDER issues = P2, requires_human=true\n- BUSINESS inquiries = P2, requires_human=true"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "id": "mistral-classify",
+      "name": "Luka — Classify with Mistral",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "mistral-metabelly",
+          "name": "Mistral Cloud Metabelly"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const content = response.content || response.text || JSON.stringify(response);\n  classification = typeof content === 'string' ? JSON.parse(content) : content;\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...classification\n  }\n}];"
+      },
+      "id": "parse-result",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "medical",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "MEDICAL",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "order",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "ORDER",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "business",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "BUSINESS",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-category",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-medical",
+      "name": "Notify Slack — Medical",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-order",
+      "name": "Notify Slack — Order",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 280]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-business",
+      "name": "Notify Slack — Business",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 460]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "03-auto-reply" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-autoreply",
+      "name": "Auto Reply — FAQ",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 640]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [[{ "node": "Extract Email Fields", "type": "main", "index": 0 }]]
+    },
+    "Extract Email Fields": {
+      "main": [[{ "node": "Luka — Classify with Mistral", "type": "main", "index": 0 }]]
+    },
+    "Luka — Classify with Mistral": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Route by Category", "type": "main", "index": 0 }]]
+    },
+    "Route by Category": {
+      "main": [
+        [{ "node": "Notify Slack — Medical", "type": "main", "index": 0 }],
+        [{ "node": "Notify Slack — Order", "type": "main", "index": 0 }],
+        [{ "node": "Notify Slack — Business", "type": "main", "index": 0 }],
+        [{ "node": "Auto Reply — FAQ", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "metabelly" }]
+}
