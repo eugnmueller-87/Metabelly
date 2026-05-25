@@ -18,10 +18,15 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Set up Python
-        run: uv python install 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-groups
+        run: uv sync --all-groups --python 3.12
+
+      - name: Install package
+        run: uv run pip install -e . --quiet
 
       # Gate 1 — formatting
       - name: Check formatting (ruff)
@@ -51,8 +56,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install dependencies
-        run: uv sync --all-groups
+        run: uv sync --all-groups --python 3.12
+
+      - name: Install package
+        run: uv run pip install -e . --quiet
 
       # Gate 5 — no secrets, no known vulnerabilities
       - name: Security scan (bandit)
