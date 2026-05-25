@@ -1,4 +1,3 @@
-
 # Raw SQL — no ORM overhead, no extra abstraction layer
 # SQLAlchemy core only when we actually need it
 
