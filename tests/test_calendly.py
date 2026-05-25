@@ -1,12 +1,13 @@
 """Calendly integration tests — fully mocked."""
+
 from unittest.mock import MagicMock, patch
 
 from metabelly.core.models import Category, Language, Priority, TriageResult
 from metabelly.integrations.calendly import (
     CalendlyClient,
     MeetingType,
-    _qualify,
     _booking_message,
+    _qualify,
 )
 
 
@@ -23,6 +24,7 @@ def _result(category: Category, language: Language = Language.HR) -> TriageResul
 
 
 # ── Qualification logic ───────────────────────────────────────────────────────
+
 
 class TestQualify:
     def test_business_gets_founder_call(self) -> None:
@@ -43,6 +45,7 @@ class TestQualify:
 
 # ── Booking message language ──────────────────────────────────────────────────
 
+
 class TestBookingMessage:
     def test_medical_hr(self) -> None:
         msg = _booking_message(MeetingType.NUTRITIONIST_20, _result(Category.MEDICAL, Language.HR))
@@ -62,6 +65,7 @@ class TestBookingMessage:
 
 
 # ── CalendlyClient ────────────────────────────────────────────────────────────
+
 
 @patch("metabelly.integrations.calendly.settings")
 @patch("metabelly.integrations.calendly.httpx.Client")
@@ -84,19 +88,16 @@ class TestCalendlyClient:
         assert link.url == "https://calendly.com/test"
         assert link.meeting_type == MeetingType.FOUNDER_30
 
-    def test_returns_none_for_faq(
-        self, mock_httpx: MagicMock, mock_settings: MagicMock
-    ) -> None:
+    def test_returns_none_for_faq(self, mock_httpx: MagicMock, mock_settings: MagicMock) -> None:
         mock_settings.calendly_api_key = "test-key"
         result = _result(Category.FAQ)
         link = CalendlyClient().get_booking_link(result)
         assert link is None
         mock_httpx.assert_not_called()
 
-    def test_api_error_returns_none(
-        self, mock_httpx: MagicMock, mock_settings: MagicMock
-    ) -> None:
+    def test_api_error_returns_none(self, mock_httpx: MagicMock, mock_settings: MagicMock) -> None:
         import httpx
+
         mock_settings.calendly_api_key = "test-key"
         mock_httpx.return_value.__enter__.return_value.get.side_effect = httpx.HTTPError("timeout")
 

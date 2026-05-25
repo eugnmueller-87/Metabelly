@@ -10,6 +10,7 @@ Layers (applied in order):
   6. Prompt injection      — strips LLM manipulation attempts before classify
   7. Security headers      — HSTS, no-sniff, no-frame, CSP
 """
+
 import hashlib
 import hmac
 import ipaddress
@@ -57,6 +58,7 @@ _SECURITY_HEADERS = {
 
 # ── Middleware ───────────────────────────────────────────────────────────────
 
+
 async def security_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
@@ -76,6 +78,7 @@ async def security_middleware(
 
 
 # ── IP allowlist ─────────────────────────────────────────────────────────────
+
 
 def _check_ip_allowlist(client_ip: str, path: str) -> None:
     allowlist = settings.webhook_ip_allowlist
@@ -97,6 +100,7 @@ def _check_ip_allowlist(client_ip: str, path: str) -> None:
 
 # ── Payload size ─────────────────────────────────────────────────────────────
 
+
 def _check_payload_size(request: Request, client_ip: str) -> None:
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
@@ -105,6 +109,7 @@ def _check_payload_size(request: Request, client_ip: str) -> None:
 
 
 # ── IP rate limit ─────────────────────────────────────────────────────────────
+
 
 def _check_ip_rate_limit(client_ip: str) -> None:
     now = time.time()
@@ -120,22 +125,26 @@ def _check_ip_rate_limit(client_ip: str) -> None:
 
 # ── Per-email rate limit ──────────────────────────────────────────────────────
 
+
 def check_email_rate_limit(sender_email: str, client_ip: str = "") -> None:
     now = time.time()
     window_start = now - 3600
-    _email_windows[sender_email] = [
-        t for t in _email_windows[sender_email] if t > window_start
-    ]
+    _email_windows[sender_email] = [t for t in _email_windows[sender_email] if t > window_start]
 
     if len(_email_windows[sender_email]) >= MAX_EMAIL_REQUESTS_PER_HOUR:
-        log(AuditEvent.RATE_LIMIT_EMAIL, Severity.WARNING, ip=client_ip,
-            detail=f"sender={sender_email[:6]}***")
+        log(
+            AuditEvent.RATE_LIMIT_EMAIL,
+            Severity.WARNING,
+            ip=client_ip,
+            detail=f"sender={sender_email[:6]}***",
+        )
         raise HTTPException(status_code=429, detail="Too many requests from this address")
 
     _email_windows[sender_email].append(now)
 
 
 # ── Webhook signature verification ───────────────────────────────────────────
+
 
 def verify_slack_signature(
     body: bytes,
@@ -152,11 +161,14 @@ def verify_slack_signature(
         log(AuditEvent.SIGNATURE_REPLAY, Severity.WARNING, ip=client_ip)
         raise HTTPException(status_code=401, detail="Request too old")
 
-    expected = "v0=" + hmac.new(
-        settings.slack_signing_secret.encode(),
-        f"v0:{timestamp}:{body.decode()}".encode(),
-        hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "v0="
+        + hmac.new(
+            settings.slack_signing_secret.encode(),
+            f"v0:{timestamp}:{body.decode()}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     if not hmac.compare_digest(expected, signature):
         log(AuditEvent.SIGNATURE_INVALID, Severity.ERROR, ip=client_ip)
@@ -165,15 +177,21 @@ def verify_slack_signature(
 
 # ── Prompt injection guard ────────────────────────────────────────────────────
 
+
 def sanitize_for_llm(text: str, client_ip: str = "") -> str:
     cleaned, count = _INJECTION_PATTERN.subn("[removed]", text)
     if count:
-        log(AuditEvent.INJECTION_DETECTED, Severity.WARNING, ip=client_ip,
-            detail=f"{count} pattern(s) removed")
+        log(
+            AuditEvent.INJECTION_DETECTED,
+            Severity.WARNING,
+            ip=client_ip,
+            detail=f"{count} pattern(s) removed",
+        )
     return cleaned[:MAX_PAYLOAD_BYTES]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _get_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")

@@ -9,6 +9,7 @@ Qualification gate:
 
 Uses Calendly v2 API (OAuth2 personal token).
 """
+
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -24,16 +25,16 @@ _CALENDLY_API = "https://api.calendly.com"
 
 
 class MeetingType(str, Enum):
-    FOUNDER_30    = "founder-30min"
+    FOUNDER_30 = "founder-30min"
     NUTRITIONIST_20 = "nutritionist-20min"
-    SUPPORT_15    = "support-15min"
+    SUPPORT_15 = "support-15min"
 
 
 @dataclass
 class BookingLink:
     meeting_type: MeetingType
     url: str
-    message: str   # message to include in the auto-reply
+    message: str  # message to include in the auto-reply
 
 
 class CalendlyClient:

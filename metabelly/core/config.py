@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # Security
-    api_secret_key: str = ""          # HMAC signing key for internal webhooks
-    encryption_key: str = ""          # Fernet key for content at rest
-    allowed_webhook_ips: str = ""     # comma-separated IP allowlist e.g. "35.191.0.0/16"
+    api_secret_key: str = ""  # HMAC signing key for internal webhooks
+    encryption_key: str = ""  # Fernet key for content at rest
+    allowed_webhook_ips: str = ""  # comma-separated IP allowlist e.g. "35.191.0.0/16"
 
     # App
     environment: str = "development"

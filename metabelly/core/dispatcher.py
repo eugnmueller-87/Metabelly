@@ -5,9 +5,10 @@ Dispatcher — receives a classified TriageResult and orchestrates the response:
   3. Post to Slack channel
   4. Log ticket to DB
 """
+
 import logging
 
-from metabelly.core.audit import AuditEvent, Severity, log
+from metabelly.core.audit import AuditEvent, log
 from metabelly.core.models import Category, Priority, TriageResult
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 class Dispatcher:
     def __init__(self) -> None:
+        from metabelly.integrations.calendly import CalendlyClient
         from metabelly.integrations.gmail import GmailClient
         from metabelly.integrations.slack import SlackNotifier, TicketNotification
-        from metabelly.integrations.calendly import CalendlyClient
 
         self._gmail = GmailClient()
         self._slack = SlackNotifier()
@@ -74,6 +75,7 @@ class Dispatcher:
 
         # 5 — log ticket to DB
         from metabelly.core.db_pool import pool
+
         async with pool.acquire() as conn:
             await conn.execute(
                 INSERT_TICKET,
@@ -101,6 +103,7 @@ def _compose_reply(result: TriageResult, calendly: object) -> str | None:
         return None
 
     from metabelly.integrations.calendly import CalendlyClient
+
     booking = CalendlyClient.get_booking_link(calendly, result)  # type: ignore[arg-type]
 
     if booking:

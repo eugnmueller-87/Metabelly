@@ -1,4 +1,5 @@
 """Unit tests for TriageClassifier — mocked so no Mistral API key needed in CI."""
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -50,7 +51,9 @@ ORDER_PAYLOAD = {
 @patch("metabelly.agents.classifier.settings")
 @patch("metabelly.agents.classifier.Mistral")
 class TestTriageClassifier:
-    def test_medical_classification(self, mock_mistral: MagicMock, mock_settings: MagicMock) -> None:
+    def test_medical_classification(
+        self, mock_mistral: MagicMock, mock_settings: MagicMock
+    ) -> None:
         mock_settings.mistral_api_key = "test-key"
         mock_mistral.return_value.chat.complete.return_value = _make_mock_response(MEDICAL_PAYLOAD)
 
@@ -92,7 +95,9 @@ class TestTriageClassifier:
         with pytest.raises(ValueError, match="no choices"):
             TriageClassifier().classify("test")
 
-    def test_result_is_triage_result(self, mock_mistral: MagicMock, mock_settings: MagicMock) -> None:
+    def test_result_is_triage_result(
+        self, mock_mistral: MagicMock, mock_settings: MagicMock
+    ) -> None:
         mock_settings.mistral_api_key = "test-key"
         mock_mistral.return_value.chat.complete.return_value = _make_mock_response(FAQ_PAYLOAD)
 

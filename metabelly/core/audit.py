@@ -2,10 +2,10 @@
 Append-only audit log. Every security-relevant event is recorded.
 Stored in DB — never deleted, never updated.
 """
+
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from ipaddress import ip_address
 
 logger = logging.getLogger("metabelly.audit")
 
@@ -26,37 +26,37 @@ CREATE INDEX IF NOT EXISTS idx_audit_created  ON audit_log (created_at);
 
 class AuditEvent(str, Enum):
     # Auth
-    WEBHOOK_RECEIVED      = "webhook_received"
-    SIGNATURE_INVALID     = "signature_invalid"
-    SIGNATURE_REPLAY      = "signature_replay"
-    IP_BLOCKED            = "ip_blocked"
+    WEBHOOK_RECEIVED = "webhook_received"
+    SIGNATURE_INVALID = "signature_invalid"
+    SIGNATURE_REPLAY = "signature_replay"
+    IP_BLOCKED = "ip_blocked"
 
     # Rate limiting
-    RATE_LIMIT_IP         = "rate_limit_ip"
-    RATE_LIMIT_EMAIL      = "rate_limit_email"
+    RATE_LIMIT_IP = "rate_limit_ip"
+    RATE_LIMIT_EMAIL = "rate_limit_email"
 
     # Payload
-    PAYLOAD_TOO_LARGE     = "payload_too_large"
-    INJECTION_DETECTED    = "injection_detected"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
+    INJECTION_DETECTED = "injection_detected"
 
     # Processing
-    EMAIL_QUEUED          = "email_queued"
-    EMAIL_DUPLICATE       = "email_duplicate"
-    EMAIL_CLASSIFIED      = "email_classified"
-    AUTO_REPLY_SENT       = "auto_reply_sent"
-    EMAIL_FAILED          = "email_failed"
+    EMAIL_QUEUED = "email_queued"
+    EMAIL_DUPLICATE = "email_duplicate"
+    EMAIL_CLASSIFIED = "email_classified"
+    AUTO_REPLY_SENT = "auto_reply_sent"
+    EMAIL_FAILED = "email_failed"
     EMAIL_PERMANENTLY_FAILED = "email_permanently_failed"
 
     # System
-    WORKER_STARTED        = "worker_started"
-    WORKER_STOPPED        = "worker_stopped"
-    STUCK_ITEMS_RESET     = "stuck_items_reset"
+    WORKER_STARTED = "worker_started"
+    WORKER_STOPPED = "worker_stopped"
+    STUCK_ITEMS_RESET = "stuck_items_reset"
 
 
 class Severity(str, Enum):
-    INFO    = "info"
+    INFO = "info"
     WARNING = "warning"
-    ERROR   = "error"
+    ERROR = "error"
     CRITICAL = "critical"
 
 
@@ -73,14 +73,14 @@ def log(
         severity.value,
         ip or "-",
         detail or "-",
-        datetime.now(timezone.utc).isoformat(),
+        datetime.now(UTC).isoformat(),
     )
 
 
 def _to_log_level(severity: Severity) -> int:
     return {
-        Severity.INFO:     logging.INFO,
-        Severity.WARNING:  logging.WARNING,
-        Severity.ERROR:    logging.ERROR,
+        Severity.INFO: logging.INFO,
+        Severity.WARNING: logging.WARNING,
+        Severity.ERROR: logging.ERROR,
         Severity.CRITICAL: logging.CRITICAL,
     }[severity]

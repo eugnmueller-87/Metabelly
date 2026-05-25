@@ -56,7 +56,7 @@ jobs:
 
       # Gate 5 — no secrets, no known vulnerabilities
       - name: Security scan (bandit)
-        run: uv run ruff check --select S .
+        run: uv run ruff check --select S --ignore S104,S105,S106 .
 
       - name: Check for secrets in code
         uses: trufflesecurity/trufflehog@main

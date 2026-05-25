@@ -7,6 +7,7 @@ Gmail Pub/Sub push flow:
 Google signs Pub/Sub requests with a JWT — we verify the token against
 Google's public keys before processing anything.
 """
+
 import base64
 import json
 import logging
@@ -73,8 +74,12 @@ async def gmail_webhook(
 
 async def _verify_google_jwt(authorization: str | None, client_ip: str) -> None:
     if not authorization or not authorization.startswith("Bearer "):
-        log(AuditEvent.SIGNATURE_INVALID, Severity.ERROR, ip=client_ip,
-            detail="missing bearer token")
+        log(
+            AuditEvent.SIGNATURE_INVALID,
+            Severity.ERROR,
+            ip=client_ip,
+            detail="missing bearer token",
+        )
         raise HTTPException(status_code=401, detail="Missing authorization")
 
     token = authorization.removeprefix("Bearer ")
@@ -83,8 +88,7 @@ async def _verify_google_jwt(authorization: str | None, client_ip: str) -> None:
         resp = await client.get(_GOOGLE_TOKEN_INFO, params={"id_token": token})
 
     if resp.status_code != 200:
-        log(AuditEvent.SIGNATURE_INVALID, Severity.ERROR, ip=client_ip,
-            detail="invalid google jwt")
+        log(AuditEvent.SIGNATURE_INVALID, Severity.ERROR, ip=client_ip, detail="invalid google jwt")
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
 
@@ -94,7 +98,9 @@ def _decode_pubsub(body: dict) -> tuple[str, str]:
         pubsub_message = body["message"]
         message_id: str = pubsub_message["messageId"]
         data = json.loads(base64.b64decode(pubsub_message["data"]).decode())
-        gmail_message_id: str = data["message"]["data"]["messageId"] if "message" in data else data["messageId"]
+        gmail_message_id: str = (
+            data["message"]["data"]["messageId"] if "message" in data else data["messageId"]
+        )
         return message_id, gmail_message_id
     except (KeyError, json.JSONDecodeError) as e:
         raise HTTPException(status_code=400, detail="Invalid Pub/Sub payload") from e

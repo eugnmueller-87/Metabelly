@@ -13,6 +13,7 @@ Setup (one-time, done in Google Cloud Console):
   - Grant Gmail API watch permission to the inbox
   - Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN in .env
 """
+
 import base64
 import email as email_lib
 import logging

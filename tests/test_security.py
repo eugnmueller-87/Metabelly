@@ -1,4 +1,5 @@
 """Security layer tests — no external services needed."""
+
 import hashlib
 import hmac
 import time
@@ -9,17 +10,15 @@ from fastapi import HTTPException
 
 from metabelly.api.security import (
     MAX_EMAIL_REQUESTS_PER_HOUR,
-    RATE_LIMIT_REQUESTS,
+    _email_windows,
     check_email_rate_limit,
     sanitize_for_llm,
     verify_slack_signature,
-    _email_windows,
-    _ip_windows,
 )
 from metabelly.core.encryption import decrypt, encrypt
 
-
 # ── Encryption ───────────────────────────────────────────────────────────────
+
 
 class TestEncryption:
     def test_roundtrip(self) -> None:
@@ -38,6 +37,7 @@ class TestEncryption:
 
 
 # ── Prompt injection guard ────────────────────────────────────────────────────
+
 
 class TestSanitizeForLlm:
     def test_clean_message_unchanged(self) -> None:
@@ -66,6 +66,7 @@ class TestSanitizeForLlm:
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
+
 class TestEmailRateLimit:
     def setup_method(self) -> None:
         _email_windows.clear()
@@ -89,6 +90,7 @@ class TestEmailRateLimit:
 
 
 # ── Slack signature verification ─────────────────────────────────────────────
+
 
 class TestSlackSignature:
     def _make_signature(self, body: bytes, timestamp: str, secret: str) -> str:

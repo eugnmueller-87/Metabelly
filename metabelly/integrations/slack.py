@@ -11,6 +11,7 @@ Channels:
   #daily-briefing → scheduled summary
   #internal-bot   → team queries answered by agent
 """
+
 import logging
 from dataclasses import dataclass
 
@@ -24,21 +25,21 @@ logger = logging.getLogger(__name__)
 
 # Channel routing table — change names here to match your Slack workspace
 _CHANNEL_MAP: dict[str, str] = {
-    "urgent":    "triage-urgent",
-    "business":  "triage-business",
-    "medical":   "triage-medical",
-    "orders":    "triage-orders",
-    "faq":       "triage-faq",
-    "briefing":  "daily-briefing",
-    "internal":  "internal-bot",
+    "urgent": "triage-urgent",
+    "business": "triage-business",
+    "medical": "triage-medical",
+    "orders": "triage-orders",
+    "faq": "triage-faq",
+    "briefing": "daily-briefing",
+    "internal": "internal-bot",
 }
 
 _PRIORITY_EMOJI: dict[Priority, str] = {
-    Priority.P1_URGENT:   ":red_circle:",
+    Priority.P1_URGENT: ":red_circle:",
     Priority.P2_BUSINESS: ":large_yellow_circle:",
-    Priority.P3_SUPPORT:  ":large_blue_circle:",
-    Priority.P4_FAQ:      ":white_circle:",
-    Priority.P5_SPAM:     ":black_circle:",
+    Priority.P3_SUPPORT: ":large_blue_circle:",
+    Priority.P4_FAQ: ":white_circle:",
+    Priority.P5_SPAM: ":black_circle:",
 }
 
 
@@ -122,7 +123,11 @@ def _route_channel(result: TriageResult) -> str | None:
 
 def _build_ticket_blocks(n: TicketNotification) -> list:
     emoji = _PRIORITY_EMOJI.get(n.result.priority, ":white_circle:")
-    auto = ":white_check_mark: Auto-reply sent" if n.result.auto_reply else ":bust_in_silhouette: Needs human"
+    auto = (
+        ":white_check_mark: Auto-reply sent"
+        if n.result.auto_reply
+        else ":bust_in_silhouette: Needs human"
+    )
 
     return [
         {
@@ -149,7 +154,7 @@ def _build_ticket_blocks(n: TicketNotification) -> list:
 
 def _build_briefing_blocks(s: BriefingStats) -> list:
     auto_pct = round(s.auto_resolved / max(s.total_received, 1) * 100)
-    topics = "\n".join(f"  {i+1}. {t} ({c})" for i, (t, c) in enumerate(s.top_topics[:5]))
+    topics = "\n".join(f"  {i + 1}. {t} ({c})" for i, (t, c) in enumerate(s.top_topics[:5]))
 
     return [
         {

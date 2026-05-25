@@ -3,8 +3,11 @@ Quick test of the triage classifier against real Metabelly customer questions.
 Run: python test_classifier.py
 Requires MISTRAL_API_KEY in .env
 """
+
 import asyncio
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from metabelly.agents.classifier import TriageClassifier
@@ -73,7 +76,7 @@ async def run_tests():
         print(f"\n[{case['label']}]")
         print(f"Input: {case['message'][:80]}{'...' if len(case['message']) > 80 else ''}")
 
-        result = await classifier.classify(case["message"])
+        result = classifier.classify(case["message"])
 
         print(f"Category:  {result.category.value.upper()}")
         print(f"Priority:  {result.priority.value}")
@@ -83,7 +86,8 @@ async def run_tests():
         print(f"Action:    {result.suggested_action}")
 
         if result.auto_reply:
-            print(f"Auto-reply preview: {result.auto_reply[:120]}...")
+            preview = result.auto_reply[:120].encode("utf-8", errors="replace").decode("utf-8")
+            print(f"Auto-reply preview: {preview}...")
 
         print("-" * 70)
 

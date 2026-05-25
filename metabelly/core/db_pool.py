@@ -2,6 +2,7 @@
 Database connection pool — created once at app startup, shared everywhere.
 Import `pool` anywhere you need a DB connection.
 """
+
 import asyncpg
 
 from metabelly.core.config import settings

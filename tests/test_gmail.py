@@ -1,19 +1,17 @@
 """Gmail integration tests — fully mocked, no API credentials needed."""
-import base64
-import json
-from unittest.mock import MagicMock, patch
 
-import pytest
+import base64
+from unittest.mock import MagicMock, patch
 
 from metabelly.integrations.gmail import (
     GmailClient,
     ParsedEmail,
-    _extract_email,
     _extract_body,
+    _extract_email,
 )
 
-
 # ── Email parsing ─────────────────────────────────────────────────────────────
+
 
 class TestExtractEmail:
     def test_angle_bracket_format(self) -> None:
@@ -62,6 +60,7 @@ class TestExtractBody:
 
 
 # ── GmailClient ───────────────────────────────────────────────────────────────
+
 
 def _make_gmail_message(sender: str, subject: str, body: str) -> dict:
     encoded_body = base64.urlsafe_b64encode(body.encode()).decode()
@@ -114,8 +113,9 @@ class TestGmailClient:
         mock_build: MagicMock,
         mock_settings: MagicMock,
     ) -> None:
-        from googleapiclient.errors import HttpError
         from unittest.mock import Mock
+
+        from googleapiclient.errors import HttpError
 
         mock_settings.google_refresh_token = "token"
         mock_settings.google_client_id = "id"
@@ -140,9 +140,7 @@ class TestGmailClient:
         mock_settings.google_client_id = "id"
         mock_settings.google_client_secret = "secret"
 
-        fake_msg = _make_gmail_message(
-            "test@example.com", "IBS pitanje", "Imam jak IBS"
-        )
+        fake_msg = _make_gmail_message("test@example.com", "IBS pitanje", "Imam jak IBS")
         mock_service = MagicMock()
         mock_service.users().messages().get().execute.return_value = fake_msg
         mock_build.return_value = mock_service

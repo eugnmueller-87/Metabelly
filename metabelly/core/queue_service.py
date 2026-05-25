@@ -2,6 +2,7 @@
 Thin service layer — inserts emails into the queue table.
 Handles deduplication via gmail_id unique constraint.
 """
+
 import logging
 
 from metabelly.core.audit import AuditEvent, Severity, log
@@ -33,11 +34,12 @@ async def enqueue(
     encrypted = encrypt(content)
 
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(INSERT_EMAIL, gmail_id, thread_id, sender_email, subject, encrypted)
+        row = await conn.fetchrow(
+            INSERT_EMAIL, gmail_id, thread_id, sender_email, subject, encrypted
+        )
 
     if row is None:
-        log(AuditEvent.EMAIL_DUPLICATE, Severity.INFO,
-            detail=f"gmail_id={gmail_id[:8]}***")
+        log(AuditEvent.EMAIL_DUPLICATE, Severity.INFO, detail=f"gmail_id={gmail_id[:8]}***")
         return False
 
     return True

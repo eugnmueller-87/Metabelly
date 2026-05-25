@@ -65,13 +65,20 @@ class QueueWorker:
             result = self._classifier.classify(content)
             await self._on_result(gmail_id, sender_email, subject, thread_id, result, item_id)
             await self._db.execute(MARK_DONE, item_id)
-            log(AuditEvent.EMAIL_CLASSIFIED, detail=f"item={item_id[:8]}*** {result.category} {result.priority}")
+            log(
+                AuditEvent.EMAIL_CLASSIFIED,
+                detail=f"item={item_id[:8]}*** {result.category} {result.priority}",
+            )
             logger.info("Item %s done — %s %s", item_id, result.category, result.priority)
         except Exception:
             logger.exception("Item %s failed on attempt %d", item_id, attempts)
             if attempts >= MAX_ATTEMPTS:
                 await self._db.execute(MARK_FAILED, item_id)
-                log(AuditEvent.EMAIL_PERMANENTLY_FAILED, Severity.ERROR, detail=f"item={item_id[:8]}***")
+                log(
+                    AuditEvent.EMAIL_PERMANENTLY_FAILED,
+                    Severity.ERROR,
+                    detail=f"item={item_id[:8]}***",
+                )
             else:
                 await self._db.execute(
                     "UPDATE email_queue SET status = 'pending' WHERE id = $1", item_id

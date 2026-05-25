@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if settings.database_url:
         from metabelly.core.db_pool import close_pool, init_pool
+
         await init_pool()
         logger.info("Database pool ready")
 
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         classifier = TriageClassifier()
 
         from metabelly.core.db_pool import pool
+
         async with pool.acquire() as conn:
             worker = QueueWorker(
                 db=conn,
@@ -57,6 +59,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if settings.database_url:
         from metabelly.core.db_pool import close_pool
+
         await close_pool()
 
     logger.info("Shutdown complete")
@@ -67,6 +70,7 @@ async def _watch_renewal_loop() -> None:
         await asyncio.sleep(WATCH_RENEWAL_INTERVAL)
         try:
             from metabelly.integrations.gmail import GmailClient
+
             GmailClient().renew_watch(settings.google_pubsub_topic)
             logger.info("Gmail watch renewed")
         except Exception:

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -18,8 +18,8 @@ class QueueItem(BaseModel):
     thread_id: str
     sender_email: str
     subject: str
-    content_encrypted: str          # raw email body, encrypted at rest
+    content_encrypted: str  # raw email body, encrypted at rest
     status: QueueStatus = QueueStatus.PENDING
     attempts: int = 0
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = datetime.now(UTC)
     processed_at: datetime | None = None
