@@ -4,6 +4,7 @@
 ![Mistral AI](https://img.shields.io/badge/Mistral_AI-classifier-FF6B35?logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)
 ![Slack](https://img.shields.io/badge/Slack-notifications-4A154B?logo=slack&logoColor=white)
+![CI](https://img.shields.io/github/actions/workflow/status/eugnmueller-87/Metabelly/ci.yml?label=CI&logo=githubactions&logoColor=white)
 ![License](https://img.shields.io/badge/license-private-lightgrey)
 
 ---
@@ -25,7 +26,7 @@ Every incoming customer email is automatically processed end-to-end:
 1. **Email arrives** in the Metabelly support inbox
 2. **The system picks it up** via Gmail
 3. **Luka classifies it** — category, priority, language, and whether it needs a human
-4. **A reply is drafted** where appropriate (FAQ answers, medical deflections with booking link)
+4. **A reply is drafted** where appropriate (FAQ answers, medical deflections with consultation booking link)
 5. **Bruno notifies the team** in the right Slack channel with a structured summary
 6. **A daily briefing** is posted every weekday morning with the inbox status
 
@@ -39,10 +40,10 @@ The human team sees only what requires their attention, in the right place, with
 Reads every incoming message and makes the first call: what kind of message is this, how urgent is it, what language is it in, does a human need to see it? Produces a structured triage result that drives everything downstream.
 
 ### Bruno — The Notifier
-Takes Luka's output and routes it to the right Slack channel. Urgent medical concerns, business leads, order issues, and FAQs each go to their own channel. Sends a daily briefing every weekday morning.
+Takes Luka's output and routes it to the right Slack channel. Urgent medical concerns, business leads, order issues, and FAQs each go to their own channel. Posts a daily briefing every weekday morning.
 
 ### Maja — The Composer
-Composes auto-replies in the customer's own language. FAQ questions get a helpful answer. Medical questions get a warm empathetic deflection plus a nutritionist booking link. P1 cases are always escalated to a human — no auto-reply.
+Composes auto-replies in the customer's own language. FAQ questions get a helpful answer. Medical questions get a warm empathetic deflection plus a consultation booking link. P1 cases are always escalated to a human — no auto-reply.
 
 ---
 
@@ -57,7 +58,7 @@ Composes auto-replies in the customer's own language. FAQ questions get a helpfu
 
 | Priority | Meaning |
 |---|---|
-| P1 | Person in distress or medication interaction risk — human only |
+| P1 | Person in distress or medication interaction risk — human only, no auto-reply |
 | P2 | Needs human attention — medical, order, business |
 | P3 | Standard FAQ — auto-resolvable |
 
@@ -66,20 +67,8 @@ Composes auto-replies in the customer's own language. FAQ questions get a helpfu
 ## Auto-reply behavior
 
 - **FAQ (P3)** — A helpful reply in the customer's language, sent automatically
-- **Medical** — A warm deflection: acknowledges the concern, explains medical advice requires a professional, offers nutritionist booking link
-- **P1 (any category)** — No auto-reply, immediately escalated to the team
-
----
-
-## Workflows (n8n)
-
-```
-n8n-workflows/
-├── 01-email-triage.json      # Gmail trigger → Luka classifies → routes by category
-├── 02-slack-notify.json      # Bruno — sends to right Slack channel, P1 hits #triage-urgent
-├── 03-auto-reply.json        # Maja — composes and sends reply via Gmail
-└── 04-daily-briefing.json    # 8am weekdays → inbox count → post to #daily-briefing
-```
+- **Medical** — A warm deflection: acknowledges the concern, forwards to the team, includes consultation booking link
+- **P1 (any category)** — No auto-reply, immediately escalated to the team in Slack
 
 ---
 
@@ -88,11 +77,36 @@ n8n-workflows/
 | Channel | Purpose |
 |---|---|
 | `#triage-urgent` | P1 alerts — immediate human action required |
-| `#triage-medical` | Medical questions awaiting nutritionist response |
+| `#triage-medical` | Medical questions awaiting team response |
 | `#triage-orders` | Order and payment issues |
 | `#triage-business` | B2B leads and partnership inquiries |
 | `#triage-faq` | Auto-resolved FAQ confirmations |
-| `#daily-briefing` | Morning inbox summary |
+| `#daily-briefing` | Morning inbox summary (weekdays 8am) |
+
+---
+
+## Workflows (n8n)
+
+```
+n8n-workflows/
+├── 01-email-triage.json      # Gmail trigger → Luka classifies → routes by category
+├── 02-slack-notify.json      # Bruno — routes to right Slack channel, P1 hits #triage-urgent
+├── 03-auto-reply.json        # Maja — composes and sends reply via Gmail
+└── 04-daily-briefing.json    # 8am weekdays → inbox count → post to #daily-briefing
+```
+
+---
+
+## Stack
+
+| Layer | Tool |
+|---|---|
+| Automation | n8n (self-hosted) |
+| AI classifier | Mistral AI |
+| Email | Gmail API (OAuth2) |
+| Notifications | Slack |
+| Database | Supabase (PostgreSQL) |
+| Booking | Calendly (free tier, single consultation link) |
 
 ---
 
