@@ -106,49 +106,6 @@ metabelly/
 
 ---
 
-## Setup
-
-**Requirements:** Python 3.11+, PostgreSQL
-
-```bash
-git clone https://github.com/eugnmueller-87/Metabelly.git
-cd Metabelly
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-pip install -r requirements.txt
-```
-
-Create a `.env` file (see `.env.example`):
-
-```env
-MISTRAL_API_KEY=...
-DATABASE_URL=postgresql+asyncpg://...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REFRESH_TOKEN=...
-SLACK_BOT_TOKEN=...
-```
-
-Run the API:
-
-```bash
-uvicorn metabelly.api.app:app --reload
-```
-
-Health check: `GET /health`
-
----
-
-## Testing the classifier
-
-```bash
-python test_classifier.py
-```
-
-Runs 12 real-world test cases in Croatian and English across all categories and prints the full triage output for each.
-
----
-
 ## GDPR
 
 Message summaries never contain personal health details, names, or email addresses — only generic topic descriptions. Email content is encrypted at rest. The audit log records events, not message content.
