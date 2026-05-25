@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      # Gate 1 — formatting
+      - name: Check formatting (ruff)
+        run: uv run ruff format --check .
+
+      # Gate 2 — linting
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      # Gate 3 — type safety
+      - name: Type check (mypy)
+        run: uv run mypy metabelly/
+
+      # Gate 4 — tests + coverage minimum 80%
+      - name: Tests + coverage
+        run: uv run pytest
+        env:
+          MISTRAL_API_KEY: test-key-ci-only
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      # Gate 5 — no secrets, no known vulnerabilities
+      - name: Security scan (bandit)
+        run: uv run ruff check --select S .
+
+      - name: Check for secrets in code
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
