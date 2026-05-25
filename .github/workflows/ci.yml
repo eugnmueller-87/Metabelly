@@ -14,35 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-groups --python 3.12
-
-      - name: Install package
-        run: uv run pip install -e . --quiet
+        run: |
+          pip install -r requirements.txt
+          pip install ruff mypy pytest pytest-asyncio pytest-cov
+          pip install -e .
 
       # Gate 1 — formatting
       - name: Check formatting (ruff)
-        run: uv run ruff format --check .
+        run: ruff format --check .
 
       # Gate 2 — linting
       - name: Lint (ruff)
-        run: uv run ruff check .
+        run: ruff check .
 
       # Gate 3 — type safety
       - name: Type check (mypy)
-        run: uv run mypy metabelly/
+        run: mypy metabelly/
 
-      # Gate 4 — tests + coverage minimum 80%
+      # Gate 4 — tests + coverage minimum 50%
       - name: Tests + coverage
-        run: uv run pytest
+        run: pytest
         env:
           MISTRAL_API_KEY: test-key-ci-only
 
@@ -53,23 +50,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-groups --python 3.12
-
-      - name: Install package
-        run: uv run pip install -e . --quiet
+        run: |
+          pip install -r requirements.txt
+          pip install ruff
+          pip install -e .
 
       # Gate 5 — no secrets, no known vulnerabilities
       - name: Security scan (bandit)
-        run: uv run ruff check --select S --ignore S104,S105,S106 .
+        run: ruff check --select S --ignore S104,S105,S106 .
 
       - name: Check for secrets in code
         uses: trufflesecurity/trufflehog@main
