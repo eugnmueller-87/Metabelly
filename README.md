@@ -37,16 +37,16 @@ The human team sees only what requires their attention, in the right place, with
 
 The system is built around a small team of specialized agents, each with a defined role:
 
-### Razvrstač — The Classifier
+### Luka — The Classifier
 Reads every incoming message and makes the first call: what kind of message is this, how urgent is it, what language is it in, does a human need to see it? Produces a structured triage result that drives everything downstream. Never touches raw PII in its output — summaries are always generic.
 
-### Glasnik — The Notifier
-Takes the classifier's output and routes it to the right place. Urgent medical concerns go to one channel. Business leads go to another. Auto-resolved FAQs get a quiet FYI. Sends daily briefings with resolved/escalated counts, response times, and top topics.
+### Bruno — The Notifier
+Takes Luka's output and routes it to the right place. Urgent medical concerns go to one channel. Business leads go to another. Auto-resolved FAQs get a quiet FYI. Sends daily briefings with resolved/escalated counts, response times, and top topics.
 
-### Vratar — The Queue Worker
-Manages the processing pipeline. Picks up emails one at a time, runs them through the classifier, hands results to the notifier. Handles retries on failure, resets stuck jobs, and ensures no message is processed twice.
+### Sven — The Queue Worker
+Manages the processing pipeline. Picks up emails one at a time, runs them through Luka, hands results to Bruno. Handles retries on failure, resets stuck jobs, and ensures no message is processed twice.
 
-### Bilježnik — The Audit Logger
+### Maja — The Audit Logger
 Silently records every security-relevant event: incoming webhooks, signature checks, rate limit hits, injection attempts, processing outcomes. Append-only — nothing is ever updated or deleted. The paper trail.
 
 ---
@@ -84,7 +84,7 @@ Silently records every security-relevant event: incoming webhooks, signature che
 ```
 metabelly/
 ├── agents/
-│   └── classifier.py         # Razvrstač — triage classification agent
+│   └── classifier.py         # Luka — triage classification agent
 ├── api/
 │   ├── app.py                # FastAPI application
 │   ├── security.py           # Webhook signature verification, rate limiting
@@ -93,15 +93,15 @@ metabelly/
 │   ├── models.py             # Pydantic data models
 │   ├── config.py             # Settings via environment variables
 │   ├── queue.py              # Queue table definitions
-│   ├── queue_service.py      # Vratar — enqueue with deduplication
-│   ├── worker.py             # Vratar — processing loop with retry logic
-│   ├── audit.py              # Bilježnik — append-only audit log
+│   ├── queue_service.py      # Sven — enqueue with deduplication
+│   ├── worker.py             # Sven — processing loop with retry logic
+│   ├── audit.py              # Maja — append-only audit log
 │   ├── encryption.py         # AES encryption for stored email content
 │   ├── database.py           # SQL query constants
 │   └── db_pool.py            # Async connection pool
 └── integrations/
     ├── gmail.py              # Gmail API — fetch and reply
-    └── slack.py              # Glasnik — Slack channel routing and briefings
+    └── slack.py              # Bruno — Slack channel routing and briefings
 ```
 
 ---
