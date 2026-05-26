@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from metabelly.api.security import security_middleware
 from metabelly.api.webhooks import router as webhook_router
 from metabelly.core.config import settings
+from metabelly.core.metrics import metrics_app
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,7 @@ app.add_middleware(
 )
 
 app.include_router(webhook_router)
+app.mount("/metrics", metrics_app)
 
 
 @app.get("/health")

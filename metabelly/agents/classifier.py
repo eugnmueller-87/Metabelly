@@ -4,6 +4,7 @@ import logging
 from mistralai.client import Mistral
 
 from metabelly.core.config import settings
+from metabelly.core.metrics import track_mistral
 from metabelly.core.models import TriageResult
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ class TriageClassifier:
             response_format={"type": "json_object"},
             temperature=0.1,
         )
+        track_mistral(response)
         if not response.choices:
             raise ValueError("Mistral returned no choices")
 
