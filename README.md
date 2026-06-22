@@ -2,10 +2,26 @@
 
 ![n8n](https://img.shields.io/badge/n8n-workflow-EA4B71?logo=n8n&logoColor=white)
 ![Mistral AI](https://img.shields.io/badge/Mistral_AI-classifier-FF6B35?logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)
-![Slack](https://img.shields.io/badge/Slack-notifications-4A154B?logo=slack&logoColor=white)
-![CI](https://img.shields.io/github/actions/workflow/status/eugnmueller-87/Metabelly/ci.yml?label=CI&logo=githubactions&logoColor=white)
+![Gmail](https://img.shields.io/badge/Gmail-OAuth2-EA4335?logo=gmail&logoColor=white)
+![Slack](https://img.shields.io/badge/Slack-webhooks-4A154B?logo=slack&logoColor=white)
+![WordPress](https://img.shields.io/badge/WordPress-chat_widget-21759B?logo=wordpress&logoColor=white)
 ![License](https://img.shields.io/badge/license-private-lightgrey)
+
+---
+
+## What this is (plain English)
+
+Metabelly gets a lot of customer emails — product questions, health concerns, order issues, partnership requests. Reading and sorting every message manually takes time the team doesn't have, and one wrong response to a health question is a real risk.
+
+This system handles the inbox automatically:
+
+- **Every email is read and categorised** the moment it arrives — is it a product question, a health concern, an order problem, or a business inquiry?
+- **The right person gets notified in Slack** immediately, with a summary of what the email is about and a direct link to reply
+- **Urgent messages get flagged** separately so nothing critical gets buried
+- **Every weekday morning** the team gets a briefing: how many unread messages are waiting and what needs attention
+- **Auto-replies are off by default** — nothing goes out to customers without approval
+
+The team spends zero time sorting email. They only see what needs a human response, already summarised, in the right Slack channel.
 
 ---
 
@@ -89,10 +105,11 @@ Composes auto-replies in the customer's own language. FAQ questions get a helpfu
 
 ```
 n8n-workflows/
-├── 01-email-triage.json      # Gmail trigger → Luka classifies → routes by category
+├── 01-email-triage.json      # Gmail trigger → Luka classifies → routes by category → Slack
 ├── 02-slack-notify.json      # Bruno — routes to right Slack channel, P1 hits #triage-urgent
 ├── 03-auto-reply.json        # Maja — composes and sends reply via Gmail
-└── 04-daily-briefing.json    # 8am weekdays → inbox count → post to #daily-briefing
+├── 04-daily-briefing.json    # 8am weekdays → inbox count → post to #triage-faq
+└── 05-chat-widget.json       # WordPress chat widget → classify → auto-reply or Slack alert
 ```
 
 ---
@@ -101,12 +118,12 @@ n8n-workflows/
 
 | Layer | Tool |
 |---|---|
-| Automation | n8n (self-hosted) |
-| AI classifier | Mistral AI |
-| Email | Gmail API (OAuth2) |
-| Notifications | Slack |
-| Database | Supabase (PostgreSQL) |
-| Booking | Calendly (free tier, single consultation link) |
+| Automation | n8n Cloud |
+| AI classifier | Mistral AI (mistral-small) |
+| Email | Gmail API (OAuth2) — support@ and info@ |
+| Notifications | Slack incoming webhooks |
+| Chat widget | WordPress + n8n webhook endpoint |
+| Booking | Consultation link (single URL across all replies) |
 
 ---
 
