@@ -34,16 +34,36 @@ SCOPES = [
 
 
 class GmailClient:
-    def __init__(self) -> None:
+    def __init__(self, account_email: str | None = None) -> None:
+        """
+        Pass account_email to select which inbox to operate on.
+        Defaults to the first configured account (gmail_support_email).
+        """
+        accounts = settings.gmail_accounts()
+        if not accounts:
+            raise ValueError("No Gmail accounts configured in .env")
+
+        if account_email:
+            if account_email not in accounts:
+                raise ValueError(f"Gmail account {account_email!r} not found in config")
+            account = accounts[account_email]
+        else:
+            account = next(iter(accounts.values()))
+
+        self._email = account["email"]
         creds = Credentials(
             token=None,
-            refresh_token=settings.google_refresh_token,
+            refresh_token=account["refresh_token"],
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
             token_uri="https://oauth2.googleapis.com/token",
             scopes=SCOPES,
         )
         self._service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+    @property
+    def email(self) -> str:
+        return self._email
 
     def fetch_email(self, message_id: str) -> "ParsedEmail | None":
         try:

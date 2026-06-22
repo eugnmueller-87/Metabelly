@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "04-daily-briefing",
   "nodes": [
     {
@@ -30,8 +30,8 @@
       "position": [460, 300],
       "credentials": {
         "gmailOAuth2": {
-          "id": "gmail-metabelly",
-          "name": "Gmail — Metabelly Support"
+          "id": "",
+          "name": "Gmail account"
         }
       }
     },
@@ -47,22 +47,24 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "mode": "name", "value": "#daily-briefing" },
-        "text": "={{ $json.message }}",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "YOUR_SLACK_WEBHOOK_FAQ",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
       },
       "id": "post-briefing",
       "name": "Post to #daily-briefing",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [900, 300],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-metabelly",
-          "name": "Slack — Metabelly"
-        }
-      }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
     }
   ],
   "connections": {
@@ -76,8 +78,6 @@
       "main": [[{ "node": "Post to #daily-briefing", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "metabelly" }]
 }

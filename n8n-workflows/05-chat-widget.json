@@ -1,0 +1,207 @@
+{
+  "name": "05-chat-widget",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "metabelly-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Chat Widget Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst message = body.message || '';\nconst source = body.source || 'chat_widget';\nconst url = body.url || '';\nconst timestamp = body.timestamp || new Date().toISOString();\n\nreturn [{\n  json: {\n    body: message.substring(0, 2000),\n    subject: 'Chat widget message',\n    sender: 'website_visitor',\n    gmailId: null,\n    threadId: null,\n    source,\n    url,\n    timestamp\n  }\n}];"
+      },
+      "id": "extract-chat",
+      "name": "Extract Chat Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "mistral-classify",
+      "name": "Luka — Classify with Mistral",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "model": "mistral-small-latest",
+        "options": {
+          "systemMessage": "You are Luka, a triage assistant for Metabelly — a Croatian gut health brand selling fiber supplements and microbiome analysis.\n\nClassify the customer message and return ONLY a JSON object with these fields:\n- category: one of FAQ, MEDICAL, ORDER, BUSINESS\n- priority: one of P1, P2, P3 (P1=urgent/medical emergency, P2=needs human, P3=can auto-reply)\n- language: HR or EN\n- summary: one sentence summary in English\n- requires_human: true or false\n- suggested_action: short action string\n- auto_reply: if requires_human is false, write a warm helpful reply in the same language as the customer. If requires_human is true, leave empty string.\n\nRules:\n- MEDICAL always requires_human=true unless it is a simple FAQ about ingredients\n- P1 always requires_human=true\n- FAQ about ingredients, dosage, delivery = P3, requires_human=false, write auto_reply\n- Medical conditions (IBS, cancer, Crohn's, pain) = P2 or P1, requires_human=true\n- ORDER issues = P2, requires_human=true\n- BUSINESS inquiries = P2, requires_human=true\n\nReturn ONLY the JSON object, no other text."
+        }
+      },
+      "id": "mistral-model",
+      "name": "Mistral Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [680, 500],
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "mistral-metabelly",
+          "name": "Mistral Cloud Metabelly"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const text = response.text || response.output || JSON.stringify(response);\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  classification = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst chatData = $('Extract Chat Message').first().json;\n\nreturn [{\n  json: {\n    ...chatData,\n    ...classification\n  }\n}];"
+      },
+      "id": "parse-result",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "medical",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "MEDICAL",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "order",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "ORDER",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "business",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "BUSINESS",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "route-category",
+      "name": "Route by Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-medical",
+      "name": "Notify Slack — Medical",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-order",
+      "name": "Notify Slack — Order",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 280]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-slack-business",
+      "name": "Notify Slack — Business",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 460]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "name", "value": "03-auto-reply" },
+        "workflowInputs": { "mappingMode": "passthrough" }
+      },
+      "id": "trigger-autoreply",
+      "name": "Auto Reply — FAQ",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 640]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Parse Classification').first().json;\nconst autoReply = data.auto_reply || '';\n\nreturn [{\n  json: {\n    auto_reply: autoReply,\n    category: data.category,\n    priority: data.priority,\n    requires_human: data.requires_human\n  }\n}];"
+      },
+      "id": "build-response",
+      "name": "Build Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 820]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Widget",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 820]
+    }
+  ],
+  "connections": {
+    "Chat Widget Webhook": {
+      "main": [[{ "node": "Extract Chat Message", "type": "main", "index": 0 }]]
+    },
+    "Extract Chat Message": {
+      "main": [[{ "node": "Luka — Classify with Mistral", "type": "main", "index": 0 }]]
+    },
+    "Mistral Model": {
+      "ai_languageModel": [[{ "node": "Luka — Classify with Mistral", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Luka — Classify with Mistral": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Route by Category", "type": "main", "index": 0 }]]
+    },
+    "Route by Category": {
+      "main": [
+        [{ "node": "Notify Slack — Medical", "type": "main", "index": 0 }],
+        [{ "node": "Notify Slack — Order", "type": "main", "index": 0 }],
+        [{ "node": "Notify Slack — Business", "type": "main", "index": 0 }],
+        [{ "node": "Auto Reply — FAQ", "type": "main", "index": 0 }],
+        [{ "node": "Build Webhook Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Webhook Response": {
+      "main": [[{ "node": "Respond to Widget", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "metabelly" }]
+}

@@ -8,9 +8,19 @@ class Settings(BaseSettings):
     # Integrations
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
+
+    # Gmail — shared OAuth2 app (one Google Cloud project, two inboxes)
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_refresh_token: str = ""
+
+    # Gmail account 1 — support@metabelly.com
+    gmail_support_refresh_token: str = ""
+    gmail_support_email: str = ""
+
+    # Gmail account 2 — second branded address
+    gmail_info_refresh_token: str = ""
+    gmail_info_email: str = ""
+
     google_pubsub_topic: str = ""
 
     # Calendly
@@ -20,9 +30,9 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # Security
-    api_secret_key: str = ""  # HMAC signing key for internal webhooks
-    encryption_key: str = ""  # Fernet key for content at rest
-    allowed_webhook_ips: str = ""  # comma-separated IP allowlist e.g. "35.191.0.0/16"
+    api_secret_key: str = ""
+    encryption_key: str = ""
+    allowed_webhook_ips: str = ""
 
     # App
     environment: str = "development"
@@ -39,6 +49,21 @@ class Settings(BaseSettings):
         if not self.allowed_webhook_ips:
             return []
         return [ip.strip() for ip in self.allowed_webhook_ips.split(",")]
+
+    def gmail_accounts(self) -> dict[str, dict[str, str]]:
+        """Returns configured Gmail accounts keyed by email address."""
+        accounts = {}
+        if self.gmail_support_email and self.gmail_support_refresh_token:
+            accounts[self.gmail_support_email] = {
+                "refresh_token": self.gmail_support_refresh_token,
+                "email": self.gmail_support_email,
+            }
+        if self.gmail_info_email and self.gmail_info_refresh_token:
+            accounts[self.gmail_info_email] = {
+                "refresh_token": self.gmail_info_refresh_token,
+                "email": self.gmail_info_email,
+            }
+        return accounts
 
 
 settings = Settings()

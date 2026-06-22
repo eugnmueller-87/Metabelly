@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "02-slack-notify",
   "nodes": [
     {
       "parameters": {},
-      "id": "workflow-input",
+      "id": "wf-trigger",
       "name": "When Called by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
@@ -11,7 +11,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n\nconst channelMap = {\n  MEDICAL: '#triage-medical',\n  ORDER: '#triage-orders',\n  BUSINESS: '#triage-business',\n  FAQ: '#triage-faq'\n};\n\nconst priorityEmoji = {\n  P1: '🚨',\n  P2: '⚠️',\n  P3: 'ℹ️'\n};\n\nconst channel = channelMap[data.category] || '#triage-faq';\nconst emoji = priorityEmoji[data.priority] || 'ℹ️';\n\nconst isUrgent = data.priority === 'P1';\nconst urgentPrefix = isUrgent ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst message = `${urgentPrefix}${emoji} *Nova poruka — ${data.category}* (${data.priority})\\n` +\n  `*Od:* ${data.sender}\\n` +\n  `*Predmet:* ${data.subject}\\n` +\n  `*Sažetak:* ${data.summary}\\n` +\n  `*Akcija:* ${data.suggested_action}\\n` +\n  `*Auto-odgovor poslan:* ${data.requires_human ? 'Ne — čeka odgovor' : 'Da'}`;\n\nreturn [{ json: { channel, message, ...data } }];"
+        "jsCode": "const data = $input.first().json;\n\nconst webhookMap = {\n  MEDICAL: 'YOUR_SLACK_WEBHOOK_MEDICAL',\n  ORDER: 'YOUR_SLACK_WEBHOOK_ORDER',\n  BUSINESS: 'YOUR_SLACK_WEBHOOK_BUSINESS',\n  FAQ: 'YOUR_SLACK_WEBHOOK_FAQ'\n};\n\nconst priorityEmoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' };\n\nconst webhookUrl = webhookMap[data.category] || webhookMap['FAQ'];\nconst emoji = priorityEmoji[data.priority] || 'ℹ️';\nconst urgentPrefix = data.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst message = `${urgentPrefix}${emoji} *Nova poruka — ${data.category}* (${data.priority})\\n` +\n  `*Od:* ${data.sender}\\n` +\n  `*Predmet:* ${data.subject}\\n` +\n  `*Sažetak:* ${data.summary}\\n` +\n  `*Akcija:* ${data.suggested_action}\\n` +\n  `*Auto-odgovor:* ${data.requires_human ? 'Ne — čeka odgovor' : 'Da'}`;\n\nreturn [{ json: { webhookUrl, message, isP1: data.priority === 'P1', ...data } }];"
       },
       "id": "prepare-slack",
       "name": "Bruno — Prepare Slack Message",
@@ -21,22 +21,24 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "mode": "expression", "value": "={{ $json.channel }}" },
-        "text": "={{ $json.message }}",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "={{ $json.webhookUrl }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
       },
       "id": "send-slack",
       "name": "Send Slack Notification",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [680, 300],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-metabelly",
-          "name": "Slack — Metabelly"
-        }
-      }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
     },
     {
       "parameters": {
@@ -45,9 +47,9 @@
           "conditions": [
             {
               "id": "is-p1",
-              "leftValue": "={{ $('Bruno — Prepare Slack Message').first().json.priority }}",
-              "rightValue": "P1",
-              "operator": { "type": "string", "operation": "equals" }
+              "leftValue": "={{ $('Bruno — Prepare Slack Message').first().json.isP1 }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
             }
           ]
         }
@@ -60,22 +62,24 @@
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "mode": "name", "value": "#triage-urgent" },
-        "text": "=🚨 *P1 ALERT — Immediate attention required*\\n*Od:* {{ $('Bruno — Prepare Slack Message').first().json.sender }}\\n*Predmet:* {{ $('Bruno — Prepare Slack Message').first().json.subject }}\\n*Sažetak:* {{ $('Bruno — Prepare Slack Message').first().json.summary }}",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "YOUR_SLACK_WEBHOOK_URGENT",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=🚨 *P1 ALERT — Immediate attention required*\n*Od:* {{ $('Bruno — Prepare Slack Message').first().json.sender }}\n*Predmet:* {{ $('Bruno — Prepare Slack Message').first().json.subject }}\n*Sažetak:* {{ $('Bruno — Prepare Slack Message').first().json.summary }}"
+            }
+          ]
+        },
+        "options": {}
       },
       "id": "alert-urgent",
       "name": "Alert #triage-urgent",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [1120, 180],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-metabelly",
-          "name": "Slack — Metabelly"
-        }
-      }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 180]
     }
   ],
   "connections": {
@@ -95,8 +99,6 @@
       ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "metabelly" }]
 }

@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "03-auto-reply",
   "nodes": [
     {
       "parameters": {},
-      "id": "workflow-input",
+      "id": "wf-trigger",
       "name": "When Called by Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
@@ -31,7 +31,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n\nconst CONSULTATION_URL = 'https://calendly.com/metabelly/consultation';\n\nconst consultationNote = data.language === 'HR'\n  ? `\\n\\nAko želite razgovarati s nama, slobodno zakažite konzultaciju: ${CONSULTATION_URL}`\n  : `\\n\\nIf you would like to speak with us, feel free to book a consultation: ${CONSULTATION_URL}`;\n\nconst isMedical = data.category === 'MEDICAL';\nlet replyBody = data.auto_reply || '';\n\nif (isMedical) {\n  replyBody = data.language === 'HR'\n    ? `Hvala vam na povjerenju i što ste nam se obratili.\\n\\nVaše pitanje zahtijeva savjet stručnjaka, stoga ćemo ga proslijediti timu koji će vam odgovoriti u najkraćem mogućem roku.\\n\\nZa brži odgovor, možete zakazati konzultaciju: ${CONSULTATION_URL}`\n    : `Thank you for reaching out to us.\\n\\nYour question requires expert advice and we will forward it to our team who will get back to you as soon as possible.\\n\\nFor a faster response, feel free to book a consultation: ${CONSULTATION_URL}`;\n} else if (replyBody) {\n  replyBody = replyBody + consultationNote;\n}\n\nreturn [{ json: { ...data, finalReply: replyBody } }];"
+        "jsCode": "const data = $input.first().json;\n\nconst CONSULTATION_URL = $vars.CONSULTATION_URL || 'https://metabelly.com/kontakt';\n\nconst consultationNote = data.language === 'HR'\n  ? `\\n\\nAko želite razgovarati s nama, kontaktirajte nas: ${CONSULTATION_URL}`\n  : `\\n\\nIf you would like to speak with us, please contact us: ${CONSULTATION_URL}`;\n\nlet replyBody = data.auto_reply || '';\n\nif (data.category === 'MEDICAL') {\n  replyBody = data.language === 'HR'\n    ? `Hvala vam na povjerenju i što ste nam se obratili.\\n\\nVaše pitanje zahtijeva savjet stručnjaka, stoga ćemo ga proslijediti timu koji će vam odgovoriti u najkraćem mogućem roku.\\n\\nZa brži odgovor: ${CONSULTATION_URL}`\n    : `Thank you for reaching out to us.\\n\\nYour question requires expert advice and we will forward it to our team who will get back to you as soon as possible.\\n\\nFor a faster response: ${CONSULTATION_URL}`;\n} else if (replyBody) {\n  replyBody = replyBody + consultationNote;\n}\n\nreturn [{ json: { ...data, finalReply: replyBody } }];"
       },
       "id": "compose-reply",
       "name": "Maja — Compose Reply",
@@ -54,29 +54,31 @@
       "position": [900, 180],
       "credentials": {
         "gmailOAuth2": {
-          "id": "gmail-metabelly",
-          "name": "Gmail — Metabelly Support"
+          "id": "",
+          "name": "Gmail account"
         }
       }
     },
     {
       "parameters": {
-        "select": "channel",
-        "channelId": { "__rl": true, "mode": "name", "value": "#triage-faq" },
-        "text": "=✅ Auto-reply sent\\n*Od:* {{ $('Maja — Compose Reply').first().json.sender }}\\n*Predmet:* {{ $('Maja — Compose Reply').first().json.subject }}\\n*Kategorija:* {{ $('Maja — Compose Reply').first().json.category }}",
-        "otherOptions": {}
+        "method": "POST",
+        "url": "YOUR_SLACK_WEBHOOK_FAQ",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=✅ Auto-reply sent\n*Od:* {{ $('Maja — Compose Reply').first().json.sender }}\n*Predmet:* {{ $('Maja — Compose Reply').first().json.subject }}\n*Kategorija:* {{ $('Maja — Compose Reply').first().json.category }}"
+            }
+          ]
+        },
+        "options": {}
       },
       "id": "slack-fyi",
       "name": "Slack FYI — Reply Sent",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.2,
-      "position": [1120, 180],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-metabelly",
-          "name": "Slack — Metabelly"
-        }
-      }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 180]
     }
   ],
   "connections": {
@@ -96,8 +98,6 @@
       "main": [[{ "node": "Slack FYI — Reply Sent", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "metabelly" }]
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "01-email-triage",
   "nodes": [
     {
@@ -13,60 +13,86 @@
         "options": {}
       },
       "id": "gmail-trigger",
-      "name": "Gmail Trigger",
+      "name": "Gmail Trigger — agentmetabelly",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || '';\nconst subject = email.subject || '';\nconst sender = email.from || '';\nconst threadId = email.threadId || '';\nconst gmailId = email.id || '';\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000)\n  }\n}];"
-      },
-      "id": "extract-email",
-      "name": "Extract Email Fields",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [460, 300]
-    },
-    {
-      "parameters": {
-        "model": "mistral-small-latest",
-        "messages": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are Luka, a triage assistant for Metabelly — a Croatian gut health brand selling fiber supplements and microbiome analysis.\n\nClassify the customer message and return ONLY a JSON object with these fields:\n- category: one of FAQ, MEDICAL, ORDER, BUSINESS\n- priority: one of P1, P2, P3 (P1=urgent/medical emergency, P2=needs human, P3=can auto-reply)\n- language: HR or EN\n- summary: one sentence summary in English\n- requires_human: true or false\n- suggested_action: short action string\n- auto_reply: if requires_human is false, write a warm helpful reply in the same language as the customer. If requires_human is true, leave empty string.\n\nRules:\n- MEDICAL always requires_human=true unless it is a simple FAQ about ingredients\n- P1 always requires_human=true\n- FAQ about ingredients, dosage, delivery = P3, requires_human=false, write auto_reply\n- Medical conditions (IBS, cancer, Crohn's, pain) = P2 or P1, requires_human=true\n- ORDER issues = P2, requires_human=true\n- BUSINESS inquiries = P2, requires_human=true"
-            },
-            {
-              "role": "user",
-              "content": "={{ $json.body }}"
-            }
-          ]
-        },
-        "jsonOutput": true,
-        "options": {}
-      },
-      "id": "mistral-classify",
-      "name": "Luka — Classify with Mistral",
-      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
-      "typeVersion": 1,
-      "position": [680, 300],
+      "position": [240, 300],
       "credentials": {
-        "mistralCloudApi": {
-          "id": "mistral-metabelly",
-          "name": "Mistral Cloud Metabelly"
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const content = response.content || response.text || JSON.stringify(response);\n  classification = typeof content === 'string' ? JSON.parse(content) : content;\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...classification\n  }\n}];"
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst sender = email.from || email.From || email.sender || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\n\n// Debug: log all keys\nconst allKeys = Object.keys(email).join(', ');\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000),\n    _debug_keys: allKeys\n  }\n}];"
       },
-      "id": "parse-result",
-      "name": "Parse Classification",
+      "id": "extract-email",
+      "name": "Extract Email Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify this customer email for Metabelly (Croatian gut health brand - fiber supplements, microbiome analysis).\n\nReturn ONLY a valid JSON object, no other text, no markdown, no explanation:\n{\n  \"category\": \"FAQ|MEDICAL|ORDER|BUSINESS\",\n  \"priority\": \"P1|P2|P3\",\n  \"language\": \"HR|EN\",\n  \"summary\": \"one sentence in English\",\n  \"requires_human\": true|false,\n  \"suggested_action\": \"short action\",\n  \"auto_reply\": \"reply text or empty string\"\n}\n\nRules:\n- requires_human=false and auto_reply ONLY when the customer asks a SPECIFIC, CLEAR question about ingredients, dosage, or delivery that can be answered factually. Set category=FAQ, priority=P3.\n- If the email is a contact form submission, general message, newsletter signup, automated notification, or does NOT contain a direct question — set requires_human=true, auto_reply=\"\"\n- If unsure whether to auto-reply, always set requires_human=true, auto_reply=\"\"\n- MEDICAL (IBS, pain, disease, symptoms, medical conditions) = P2, requires_human=true, auto_reply=\"\"\n- ORDER (shipping, payment, returns, orders) = P2, requires_human=true, auto_reply=\"\"\n- BUSINESS (partnerships, wholesale, press, collaboration) = P2, requires_human=true, auto_reply=\"\"\n- P1 only for medical emergencies\n\nEmail to classify:\n{{ $json.body }}",
+        "options": {}
+      },
+      "id": "llm-chain",
+      "name": "Luka — Classify with Mistral",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "model": "mistral-small-latest",
+        "options": {}
+      },
+      "id": "mistral-model",
+      "name": "Mistral Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [700, 500],
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const text = response.text || response.output || JSON.stringify(response);\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  classification = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nconst webhookMap = {\n  MEDICAL: 'YOUR_SLACK_WEBHOOK_MEDICAL',\n  ORDER: 'YOUR_SLACK_WEBHOOK_ORDER',\n  BUSINESS: 'YOUR_SLACK_WEBHOOK_BUSINESS',\n  FAQ: 'YOUR_SLACK_WEBHOOK_FAQ'\n};\n\nconst urgentWebhook = 'YOUR_SLACK_WEBHOOK_URGENT';\n\nconst priorityEmoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' };\nconst emoji = priorityEmoji[classification.priority] || 'ℹ️';\nconst urgentPrefix = classification.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst slackWebhook = webhookMap[classification.category] || webhookMap['FAQ'];\nconst gmailLink = `https://mail.google.com/mail/u/0/#inbox/${emailData.threadId}`;\nconst slackMessage = `${urgentPrefix}${emoji} *Nova poruka — ${classification.category}* (${classification.priority})\\n*Od:* ${emailData.sender}\\n*Predmet:* ${emailData.subject}\\n*Sažetak:* ${classification.summary}\\n*Akcija:* ${classification.suggested_action}\\n*Auto-odgovor:* ${classification.requires_human ? 'Ne — čeka odgovor' : 'Da'}\\n<${gmailLink}|📧 Otvori i odgovori u Gmailu>`;\n\nconst closingNote = classification.language === 'HR'\n  ? `\\n\\nZa sva ostala pitanja, odgovorite na ovaj email i naš tim će vam se javiti.`\n  : `\\n\\nFor any other questions, simply reply to this email and our team will get back to you.`;\n\nlet autoReply = '';\nif (!classification.requires_human) {\n  autoReply = (classification.auto_reply || '') + closingNote;\n}\n\nreturn [{ json: { \n  ...emailData, \n  ...classification,\n  slackWebhook,\n  urgentWebhook,\n  slackMessage,\n  autoReply,\n  isP1: classification.priority === 'P1',\n  canAutoReply: false\n} }];"
+      },
+      "id": "parse-result",
+      "name": "Parse & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.slackWebhook }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.slackMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack Channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 300]
     },
     {
       "parameters": {
@@ -74,102 +100,145 @@
           "options": { "caseSensitive": true },
           "conditions": [
             {
-              "id": "medical",
-              "leftValue": "={{ $json.category }}",
-              "rightValue": "MEDICAL",
-              "operator": { "type": "string", "operation": "equals" }
-            },
+              "id": "is-p1",
+              "leftValue": "={{ $('Parse & Prepare').first().json.isP1 }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "check-p1",
+      "name": "Is P1 Urgent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1360, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Parse & Prepare').first().json.urgentWebhook }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "id": "order",
-              "leftValue": "={{ $json.category }}",
-              "rightValue": "ORDER",
-              "operator": { "type": "string", "operation": "equals" }
-            },
-            {
-              "id": "business",
-              "leftValue": "={{ $json.category }}",
-              "rightValue": "BUSINESS",
-              "operator": { "type": "string", "operation": "equals" }
+              "name": "text",
+              "value": "=🚨 *P1 ALERT — Immediate attention required*\n*Od:* {{ $('Parse & Prepare').first().json.sender }}\n*Predmet:* {{ $('Parse & Prepare').first().json.subject }}\n*Sažetak:* {{ $('Parse & Prepare').first().json.summary }}"
             }
           ]
         },
-        "fallbackOutput": "extra"
+        "options": {}
       },
-      "id": "route-category",
-      "name": "Route by Category",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [1120, 300]
+      "id": "alert-urgent",
+      "name": "Alert #triage-urgent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1580, 120]
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
-        "workflowInputs": { "mappingMode": "passthrough" }
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "can-reply",
+              "leftValue": "={{ $('Parse & Prepare').first().json.canAutoReply }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
       },
-      "id": "trigger-slack-medical",
-      "name": "Notify Slack — Medical",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [1340, 100]
+      "id": "check-autoreply",
+      "name": "Can Auto-Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1360, 420]
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
-        "workflowInputs": { "mappingMode": "passthrough" }
+        "operation": "reply",
+        "messageId": "={{ $('Parse & Prepare').first().json.gmailId }}",
+        "threadId": "={{ $('Parse & Prepare').first().json.threadId }}",
+        "message": "={{ $('Parse & Prepare').first().json.autoReply }}",
+        "options": {
+          "sendAs": "support@metabelly.com"
+        }
       },
-      "id": "trigger-slack-order",
-      "name": "Notify Slack — Order",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [1340, 280]
+      "id": "send-reply",
+      "name": "Send Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1580, 340],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "mode": "name", "value": "02-slack-notify" },
-        "workflowInputs": { "mappingMode": "passthrough" }
+        "method": "POST",
+        "url": "YOUR_SLACK_WEBHOOK_FAQ",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=✅ Auto-reply sent\n*Od:* {{ $('Parse & Prepare').first().json.sender }}\n*Predmet:* {{ $('Parse & Prepare').first().json.subject }}"
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "trigger-slack-business",
-      "name": "Notify Slack — Business",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [1340, 460]
-    },
-    {
-      "parameters": {
-        "workflowId": { "__rl": true, "mode": "name", "value": "03-auto-reply" },
-        "workflowInputs": { "mappingMode": "passthrough" }
-      },
-      "id": "trigger-autoreply",
-      "name": "Auto Reply — FAQ",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [1340, 640]
+      "id": "slack-fyi",
+      "name": "Slack FYI — Reply Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1800, 340]
     }
   ],
   "connections": {
-    "Gmail Trigger": {
+    "Gmail Trigger — agentmetabelly": {
       "main": [[{ "node": "Extract Email Fields", "type": "main", "index": 0 }]]
     },
     "Extract Email Fields": {
       "main": [[{ "node": "Luka — Classify with Mistral", "type": "main", "index": 0 }]]
     },
+    "Mistral Model": {
+      "ai_languageModel": [[{ "node": "Luka — Classify with Mistral", "type": "ai_languageModel", "index": 0 }]]
+    },
     "Luka — Classify with Mistral": {
-      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Parse & Prepare", "type": "main", "index": 0 }]]
     },
-    "Parse Classification": {
-      "main": [[{ "node": "Route by Category", "type": "main", "index": 0 }]]
+    "Parse & Prepare": {
+      "main": [[{ "node": "Notify Slack Channel", "type": "main", "index": 0 }]]
     },
-    "Route by Category": {
+    "Notify Slack Channel": {
       "main": [
-        [{ "node": "Notify Slack — Medical", "type": "main", "index": 0 }],
-        [{ "node": "Notify Slack — Order", "type": "main", "index": 0 }],
-        [{ "node": "Notify Slack — Business", "type": "main", "index": 0 }],
-        [{ "node": "Auto Reply — FAQ", "type": "main", "index": 0 }]
+        [
+          { "node": "Is P1 Urgent?", "type": "main", "index": 0 },
+          { "node": "Can Auto-Reply?", "type": "main", "index": 0 }
+        ]
       ]
+    },
+    "Is P1 Urgent?": {
+      "main": [
+        [{ "node": "Alert #triage-urgent", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Can Auto-Reply?": {
+      "main": [
+        [{ "node": "Send Gmail Reply", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Send Gmail Reply": {
+      "main": [[{ "node": "Slack FYI — Reply Sent", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "metabelly" }]
 }
