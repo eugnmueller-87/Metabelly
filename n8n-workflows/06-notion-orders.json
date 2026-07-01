@@ -1,0 +1,125 @@
+{
+  "name": "06-order-tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "filters": {
+          "q": "is:unread"
+        },
+        "options": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\nconst from = email.from || email.From || '';\n\nconst emailMatch = from.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);\nconst customerEmail = emailMatch ? emailMatch[1] : '';\n\nconst nameMatch = from.match(/^([^<@]+)/);\nconst customerName = nameMatch ? nameMatch[1].trim().replace(/\"/g, '') : customerEmail;\n\nconst orderMatch = subject.match(/#(\\d+)/);\nconst orderNum = orderMatch ? '#' + orderMatch[1] : '';\nconst isOrder = subject.toLowerCase().includes('narud');\n\nlet product = '', total = 0, shipping = '', payment = '', address = '', phone = '';\nif (isOrder) {\n  const productLines = [];\n  const productRegex = /([A-Za-z][^\\n€]{5,60?})\\s+(\\d+)\\s+€([\\d,\\.]+)/g;\n  let pm;\n  while ((pm = productRegex.exec(body)) !== null) {\n    productLines.push(pm[1].trim() + ' × ' + pm[2] + ' — €' + pm[3]);\n  }\n  product = productLines.join(', ');\n\n  const totalMatch = body.match(/Ukupno[:\\s]+€([\\d,\\.]+)/i);\n  total = totalMatch ? parseFloat(totalMatch[1].replace(',','.')) : 0;\n\n  const shippingMatch = body.match(/Dostava[:\\s]+([^\\n\\r€]{2,40})/i);\n  shipping = shippingMatch ? shippingMatch[1].trim() : '';\n\n  const paymentMatch = body.match(/Na[cč]in pla[cć]anja[:\\s]+([^\\n\\r]{2,50})/i);\n  payment = paymentMatch ? paymentMatch[1].trim() : '';\n\n  const addressMatch = body.match(/Adresa za dostavu[\\s\\S]*?\\n([^\\n]+\\n[^\\n]+\\n[^\\n]+)/i);\n  address = addressMatch ? addressMatch[1].replace(/\\n/g, ', ').trim() : '';\n\n  const phoneMatch = body.match(/(0\\d{9,10})/);\n  phone = phoneMatch ? phoneMatch[1] : '';\n}\n\nconst gmailLink = 'https://mail.google.com/mail/u/0/#inbox/' + threadId;\nconst bodySnippet = body.substring(0, 1000);\n\nreturn [{ json: {\n  gmailId, threadId, subject, customerName, customerEmail,\n  orderNum, isOrder, product, total, shipping, payment, address, phone,\n  gmailLink, bodySnippet, from\n} }];"
+      },
+      "id": "parse-email",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 256,\n  system: 'You are Luka, an email classifier for Metabelly (Croatian supplement brand). Classify customer emails. LANGUAGE RULE: detect the language the customer used and return HR, EN, or OTHER. Categories: ORDER (orders/shipping/payment), FAQ (product questions/ingredients/dosage), MEDICAL (health conditions/symptoms — always P1), BUSINESS (wholesale/partnerships), URGENT (distress/emergency). Priority: P1=urgent/medical, P2=needs human, P3=routine. Return ONLY valid JSON — no markdown, no extra text.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "classify-claude",
+      "name": "Classify with Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst prev = $('Parse Email').first().json;\n\nlet category = 'FAQ', priority = 'P3', summary = '', language = 'HR';\ntry {\n  const content = input.content[0].text;\n  const parsed = JSON.parse(content);\n  category = parsed.category || 'FAQ';\n  priority = parsed.priority || 'P3';\n  summary = parsed.summary || '';\n  language = parsed.language || 'HR';\n} catch(e) {}\n\nreturn [{ json: { ...prev, category, priority, summary, language } }];"
+      },
+      "id": "parse-classification",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $vars.AIRTABLE_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  records: [{\n    fields: {\n      Customer: $json.customerName || '(unknown)',\n      Subject: $json.subject || '',\n      Email: $json.customerEmail || '',\n      Category: $json.category || 'FAQ',\n      Priority: $json.priority || 'P3',\n      Summary: $json.summary || '',\n      'Order #': $json.orderNum || '',\n      Phone: $json.phone || '',\n      Product: $json.product || '',\n      Total: $json.total || 0,\n      Address: $json.address || '',\n      Payment: $json.payment || '',\n      Shipping: $json.shipping || '',\n      'Gmail Link': $json.gmailLink || '',\n      Received: new Date().toISOString(),\n      'Order Status': 'New'\n    }\n  }]\n}) }}",
+        "options": {}
+      },
+      "id": "create-airtable-record",
+      "name": "Add to Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [[{ "node": "Parse Email", "type": "main", "index": 0 }]]
+    },
+    "Parse Email": {
+      "main": [[{ "node": "Classify with Claude", "type": "main", "index": 0 }]]
+    },
+    "Classify with Claude": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Add to Airtable", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}

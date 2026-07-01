@@ -1,0 +1,79 @@
+{
+  "name": "10-link-interactions",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Run Once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;\nconst CUSTOMER_BASE_URL = 'https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ';\nconst CUSTOMERS_URL = 'https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblxs0QLftdL72IUV';\n\n// Fetch all Customer Base records (id + email)\nconst allContacts = [];\nlet offset = null;\ndo {\n  const url = CUSTOMER_BASE_URL + '?pageSize=100&fields%5B%5D=Email' + (offset ? '&offset=' + offset : '');\n  const page = await this.helpers.httpRequest({ method: 'GET', url, headers: { 'Authorization': 'Bearer ' + AIRTABLE_TOKEN } });\n  for (const rec of (page.records || [])) {\n    if (rec.fields.Email) allContacts.push({ id: rec.id, email: rec.fields.Email.toLowerCase().trim() });\n  }\n  offset = page.offset;\n} while (offset);\n\n// Build email -> record IDs map\nconst emailToIds = {};\nfor (const c of allContacts) {\n  if (!emailToIds[c.email]) emailToIds[c.email] = [];\n  emailToIds[c.email].push(c.id);\n}\n\n// Fetch all Customers (id + email)\nconst allCustomers = [];\noffset = null;\ndo {\n  const url = CUSTOMERS_URL + '?pageSize=100&fields%5B%5D=Email' + (offset ? '&offset=' + offset : '');\n  const page = await this.helpers.httpRequest({ method: 'GET', url, headers: { 'Authorization': 'Bearer ' + AIRTABLE_TOKEN } });\n  for (const rec of (page.records || [])) {\n    if (rec.fields.Email) allCustomers.push({ id: rec.id, email: rec.fields.Email.toLowerCase().trim() });\n  }\n  offset = page.offset;\n} while (offset);\n\n// Output one item per customer that has matching contacts\nconst results = [];\nfor (const customer of allCustomers) {\n  const contactIds = emailToIds[customer.email];\n  if (contactIds && contactIds.length > 0) {\n    results.push({ json: { customerId: customer.id, contactIds } });\n  }\n}\n\nreturn results;"
+      },
+      "id": "prepare-links",
+      "name": "Prepare Links",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-batches",
+      "name": "Split in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblxs0QLftdL72IUV/{{ $json.customerId }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { Interactions: $json.contactIds } }) }}",
+        "options": {}
+      },
+      "id": "patch-customer",
+      "name": "Patch Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Run Once": {
+      "main": [[{ "node": "Prepare Links", "type": "main", "index": 0 }]]
+    },
+    "Prepare Links": {
+      "main": [[{ "node": "Split in Batches", "type": "main", "index": 0 }]]
+    },
+    "Split in Batches": {
+      "main": [[{ "node": "Patch Customer", "type": "main", "index": 0 }], []]
+    },
+    "Patch Customer": {
+      "main": [[{ "node": "Split in Batches", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}

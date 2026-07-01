@@ -1,0 +1,135 @@
+{
+  "name": "07-backfill-requests",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Run Once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {},
+        "options": {
+          "format": "simple"
+        }
+      },
+      "id": "gmail-search",
+      "name": "Get All Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [460, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\nconst from = email.from || email.From || '';\n\n// Skip system/internal emails\nconst skipSenders = ['mailer-daemon', 'noreply', 'no-reply', 'mailerlite', 'metabelly – do not'];\nconst senderLower = from.toLowerCase();\nconst skip = skipSenders.some(s => senderLower.includes(s));\nif (skip) return [];\n\n// Extract customer email from sender\nconst emailMatch = from.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);\nconst customerEmail = emailMatch ? emailMatch[1] : '';\n\n// Skip internal metabelly emails\nif (customerEmail.includes('metabelly.com')) return [];\n\n// Extract name from sender\nconst nameMatch = from.match(/^([^<@]+)/);\nconst customerName = nameMatch ? nameMatch[1].trim().replace(/\"/g, '') : customerEmail;\n\n// Check if order\nconst orderMatch = subject.match(/#(\\d+)/);\nconst orderNum = orderMatch ? '#' + orderMatch[1] : '';\nconst isOrder = subject.toLowerCase().includes('narud');\n\n// Extract order details if order\nlet product = '', total = 0, shipping = '', payment = '', address = '', phone = '';\nif (isOrder) {\n  const productLines = [];\n  const productRegex = /([A-Za-z][^\\n€]{5,60?})\\s+(\\d+)\\s+€([\\d,\\.]+)/g;\n  let pm;\n  while ((pm = productRegex.exec(body)) !== null) {\n    productLines.push(`${pm[1].trim()} × ${pm[2]} — €${pm[3]}`);\n  }\n  product = productLines.join(', ');\n\n  const totalMatch = body.match(/Ukupno[:\\s]+€([\\d,\\.]+)/i);\n  total = totalMatch ? parseFloat(totalMatch[1].replace(',','.')) : 0;\n\n  const shippingMatch = body.match(/Dostava[:\\s]+([^\\n\\r€]{2,40})/i);\n  shipping = shippingMatch ? shippingMatch[1].trim() : '';\n\n  const paymentMatch = body.match(/Na[cč]in pla[cć]anja[:\\s]+([^\\n\\r]{2,50})/i);\n  payment = paymentMatch ? paymentMatch[1].trim() : '';\n\n  const addressMatch = body.match(/Adresa za dostavu[\\s\\S]*?\\n([^\\n]+\\n[^\\n]+\\n[^\\n]+)/i);\n  address = addressMatch ? addressMatch[1].replace(/\\n/g, ', ').trim() : '';\n\n  const phoneMatch = body.match(/(0\\d{9,10})/);\n  phone = phoneMatch ? phoneMatch[1] : '';\n}\n\nconst gmailLink = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;\nconst bodySnippet = body.substring(0, 1000);\n\nreturn [{ json: {\n  gmailId, threadId, subject, customerName, customerEmail,\n  orderNum, isOrder, product, total, shipping, payment, address, phone,\n  gmailLink, bodySnippet, from\n} }];"
+      },
+      "id": "parse-email",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "model": "mistral-small-latest",
+        "options": {}
+      },
+      "id": "mistral-model",
+      "name": "Mistral Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [900, 480],
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ 'Classify this customer email for Metabelly (Croatian supplement brand).\n\nSubject: ' + $json.subject + '\nFrom: ' + $json.from + '\nBody: ' + $json.bodySnippet + '\n\nRespond with ONLY valid JSON, no other text:\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence summary in English\", \"language\": \"HR|EN|OTHER\"}' }}",
+        "options": {
+          "systemPromptTemplate": "You are Luka, an email classifier for Metabelly. Categories: ORDER (order/shipping/payment), FAQ (product questions, ingredients, dosage), MEDICAL (health conditions, symptoms, medication - always P1), BUSINESS (wholesale, partnerships, B2B), URGENT (distress, emergency). Priority: P1=urgent/medical, P2=needs human, P3=can auto-reply. Return only valid JSON."
+        }
+      },
+      "id": "classify",
+      "name": "Classify with Mistral",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst text = input.text || input.response || input.output || '';\n\nlet category = 'FAQ', priority = 'P3', summary = '', language = 'HR';\ntry {\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    const parsed = JSON.parse(jsonMatch[0]);\n    category = parsed.category || 'FAQ';\n    priority = parsed.priority || 'P3';\n    summary = parsed.summary || '';\n    language = parsed.language || 'HR';\n  }\n} catch(e) {}\n\nreturn [{ json: { ...input, category, priority, summary, language } }];"
+      },
+      "id": "parse-classification",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  records: [{\n    fields: {\n      Customer: $json.customerName || '(unknown)',\n      Subject: $json.subject || '',\n      Email: $json.customerEmail || '',\n      Category: $json.category || 'FAQ',\n      Priority: $json.priority || 'P3',\n      Summary: $json.summary || '',\n      'Order #': $json.orderNum || '',\n      Phone: $json.phone || '',\n      Product: $json.product || '',\n      Total: $json.total || 0,\n      Address: $json.address || '',\n      Payment: $json.payment || '',\n      Shipping: $json.shipping || '',\n      'Gmail Link': $json.gmailLink || '',\n      Received: new Date().toISOString(),\n      'Order Status': 'New'\n    }\n  }]\n}) }}",
+        "options": {}
+      },
+      "id": "create-airtable-record",
+      "name": "Add to Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "Run Once": {
+      "main": [[{ "node": "Get All Emails", "type": "main", "index": 0 }]]
+    },
+    "Get All Emails": {
+      "main": [[{ "node": "Parse Email", "type": "main", "index": 0 }]]
+    },
+    "Parse Email": {
+      "main": [[{ "node": "Classify with Mistral", "type": "main", "index": 0 }]]
+    },
+    "Classify with Mistral": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Add to Airtable", "type": "main", "index": 0 }]]
+    },
+    "Mistral Model": {
+      "ai_languageModel": [[{ "node": "Classify with Mistral", "type": "ai_languageModel", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}

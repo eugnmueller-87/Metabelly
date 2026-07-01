@@ -1,0 +1,86 @@
+{
+  "name": "08-woo-backfill",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Run Once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "order",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "woo-get-orders",
+      "name": "Get All WooCommerce Orders",
+      "type": "n8n-nodes-base.wooCommerce",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "wooCommerceApi": {
+          "id": "",
+          "name": "WooCommerce account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const o = item.json;\n  const billing = o.billing || {};\n  const customerName = (billing.first_name + ' ' + billing.last_name).trim();\n  const customerEmail = billing.email || '';\n  const phone = billing.phone || '';\n  const address = [billing.address_1, billing.address_2, billing.city, billing.postcode, billing.country].filter(Boolean).join(', ');\n  const lineItems = (o.line_items || []).map(li => li.name + ' x' + li.quantity + ' €' + li.total).join(', ');\n  const total = parseFloat(o.total) || 0;\n  const payment = o.payment_method_title || '';\n  const statusMap = { 'pending': 'Pending Payment', 'processing': 'Processing', 'on-hold': 'On Hold', 'completed': 'Completed', 'cancelled': 'Cancelled', 'refunded': 'Refunded', 'failed': 'Failed' };\n  const orderStatus = statusMap[o.status] || o.status;\n  const receivedAt = o.date_created ? new Date(o.date_created).toISOString() : new Date().toISOString();\n\n  results.push({ json: {\n    orderNum: '#' + o.number,\n    Customer: customerName || '(unknown)',\n    Email: customerEmail,\n    Phone: phone,\n    Address: address,\n    Product: lineItems,\n    Total: total,\n    Payment: payment,\n    Shipping: 'Besplatna dostava',\n    Category: 'ORDER',\n    Summary: orderStatus,\n    Received: receivedAt\n  }});\n}\n\nreturn results;"
+      },
+      "id": "parse-orders",
+      "name": "Parse Orders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "split-batches",
+      "name": "Split in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ records: $input.all().map(item => ({ fields: { 'Order #': item.json.orderNum, Customer: item.json.Customer, Email: item.json.Email, Phone: item.json.Phone, Address: item.json.Address, Product: item.json.Product, Total: item.json.Total, Payment: item.json.Payment, Shipping: item.json.Shipping, Category: item.json.Category, Summary: item.json.Summary, 'Order Status': item.json.Summary, Received: item.json.Received } })) }) }}",
+        "options": {}
+      },
+      "id": "insert-airtable",
+      "name": "Insert to Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Run Once": {
+      "main": [[{ "node": "Get All WooCommerce Orders", "type": "main", "index": 0 }]]
+    },
+    "Get All WooCommerce Orders": {
+      "main": [[{ "node": "Parse Orders", "type": "main", "index": 0 }]]
+    },
+    "Parse Orders": {
+      "main": [[{ "node": "Split in Batches", "type": "main", "index": 0 }]]
+    },
+    "Split in Batches": {
+      "main": [[{ "node": "Insert to Airtable", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}

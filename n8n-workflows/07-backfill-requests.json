@@ -1,0 +1,116 @@
+{
+  "name": "07-backfill-requests",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Run Once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {},
+        "options": {
+          "format": "simple"
+        }
+      },
+      "id": "gmail-search",
+      "name": "Get All Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [460, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const email = item.json;\n  const body = email.text || email.snippet || email.body || '';\n  const subject = email.subject || email.Subject || '';\n  const threadId = email.threadId || email.id || '';\n  const gmailId = email.id || email.messageId || '';\n  const from = email.from || email.From || '';\n\n  const emailMatch = from.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);\n  const customerEmail = emailMatch ? emailMatch[1] : from;\n  const nameMatch = from.match(/^\"?([^\"<@\\n]+)\"?\\s*</);\n  const customerName = nameMatch ? nameMatch[1].trim() : customerEmail;\n\n  const orderMatch = subject.match(/#(\\d+)/);\n  const orderNum = orderMatch ? '#' + orderMatch[1] : '';\n  const isOrder = subject.toLowerCase().includes('narud');\n\n  let product = '', total = 0, shipping = '', payment = '', address = '', phone = '';\n  if (isOrder) {\n    const productLines = [];\n    const re = /([A-Za-z][^\\n€]{5,60?})\\s+(\\d+)\\s+€([\\d,\\.]+)/g;\n    let m;\n    while ((m = re.exec(body)) !== null) productLines.push(m[1].trim() + ' x' + m[2] + ' €' + m[3]);\n    product = productLines.join(', ');\n    const tm = body.match(/Ukupno[:\\s]+€([\\d,\\.]+)/i);\n    total = tm ? parseFloat(tm[1].replace(',','.')) : 0;\n    const sm = body.match(/Dostava[:\\s]+([^\\n\\r€]{2,40})/i);\n    shipping = sm ? sm[1].trim() : '';\n    const pm = body.match(/Na[cč]in pla[cć]anja[:\\s]+([^\\n\\r]{2,50})/i);\n    payment = pm ? pm[1].trim() : '';\n    const am = body.match(/Adresa za dostavu[\\s\\S]*?\\n([^\\n]+\\n[^\\n]+\\n[^\\n]+)/i);\n    address = am ? am[1].replace(/\\n/g, ', ').trim() : '';\n    const phm = body.match(/(0\\d{9,10})/);\n    phone = phm ? phm[1] : '';\n  }\n\n  const internalDate = email.internalDate || email.date || null;\n  const receivedAt = internalDate ? new Date(parseInt(internalDate)).toISOString() : new Date().toISOString();\n\n  results.push({ json: {\n    gmailId, threadId, subject, customerName, customerEmail, from,\n    orderNum, isOrder, product, total, shipping, payment, address, phone,\n    gmailLink: 'https://mail.google.com/mail/u/0/#inbox/' + threadId,\n    bodySnippet: body.substring(0, 800),\n    receivedAt\n  }});\n}\n\nreturn results;"
+      },
+      "id": "parse-email",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 256,\n  system: 'You are an email classifier for Metabelly, a Croatian supplement brand. Classify emails and detect the language the customer wrote in. Return ONLY valid JSON — no other text, no markdown.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "classify-claude",
+      "name": "Classify with Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const input = $input.all()[i].json;\n  const prev = $('Parse Email').all()[i].json;\n\n  let category = 'FAQ', priority = 'P3', summary = '', language = 'HR';\n  try {\n    const content = input.content[0].text;\n    const parsed = JSON.parse(content);\n    category = parsed.category || 'FAQ';\n    priority = parsed.priority || 'P3';\n    summary = parsed.summary || '';\n    language = parsed.language || 'HR';\n  } catch(e) {}\n\n  results.push({ json: { ...prev, category, priority, summary, language } });\n}\n\nreturn results;"
+      },
+      "id": "parse-classification",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Batch all records into groups of 10 and send to Airtable\nconst AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;\nconst AIRTABLE_URL = 'https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ';\n\nconst items = $input.all();\nconst BATCH_SIZE = 10;\nlet inserted = 0;\n\nfor (let i = 0; i < items.length; i += BATCH_SIZE) {\n  const batch = items.slice(i, i + BATCH_SIZE);\n  const records = batch.map(item => ({\n    fields: {\n      Customer: item.json.customerName || '(unknown)',\n      Subject: item.json.subject || '',\n      Email: item.json.customerEmail || '',\n      Category: item.json.category || 'FAQ',\n      Priority: item.json.priority || 'P3',\n      Summary: item.json.summary || '',\n      'Order #': item.json.orderNum || '',\n      Phone: item.json.phone || '',\n      Product: item.json.product || '',\n      Total: item.json.total || 0,\n      Address: item.json.address || '',\n      Payment: item.json.payment || '',\n      Shipping: item.json.shipping || '',\n      'Gmail Link': item.json.gmailLink || '',\n      Received: item.json.receivedAt || new Date().toISOString(),\n      'Order Status': 'New'\n    }\n  }));\n\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: AIRTABLE_URL,\n    headers: {\n      'Authorization': 'Bearer ' + AIRTABLE_TOKEN,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ records })\n  });\n\n  inserted += batch.length;\n\n  // 250ms pause between batches to respect rate limit\n  if (i + BATCH_SIZE < items.length) {\n    await new Promise(r => setTimeout(r, 250));\n  }\n}\n\nreturn [{ json: { success: true, inserted } }];"
+      },
+      "id": "batch-airtable",
+      "name": "Batch Insert to Airtable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "Run Once": {
+      "main": [[{ "node": "Get All Emails", "type": "main", "index": 0 }]]
+    },
+    "Get All Emails": {
+      "main": [[{ "node": "Parse Email", "type": "main", "index": 0 }]]
+    },
+    "Parse Email": {
+      "main": [[{ "node": "Classify with Claude", "type": "main", "index": 0 }]]
+    },
+    "Classify with Claude": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Batch Insert to Airtable", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}

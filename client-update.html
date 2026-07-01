@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metabelly — Project Update</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #3d6b35;
+      --green-light: #eef4ec;
+      --green-mid:   #c6ddc2;
+      --amber:       #92400e;
+      --amber-light: #fffbeb;
+      --amber-border:#fcd34d;
+      --red:         #b91c1c;
+      --red-light:   #fef2f2;
+      --red-border:  #fca5a5;
+      --border:      #e5e7eb;
+      --text:        #111827;
+      --muted:       #6b7280;
+      --bg:          #f9fafb;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* header */
+    .logo-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    .logo-circle {
+      width: 42px;
+      height: 42px;
+      background: var(--green);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .logo-bar .brand { font-size: 17px; font-weight: 700; color: var(--green); }
+    .logo-bar .sub   { font-size: 13px; color: var(--muted); }
+
+    .date-line {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin-bottom: 10px;
+    }
+    .intro {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 40px;
+      max-width: 560px;
+    }
+
+    /* section */
+    section { margin-bottom: 40px; }
+    h2 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* checklist */
+    .checklist { list-style: none; }
+    .checklist li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .dot {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .dot.done    { background: var(--green-light); color: var(--green); }
+    .dot.pending { background: var(--amber-light); color: var(--amber); border: 1px solid var(--amber-border); }
+    .checklist .text strong { display: block; margin-bottom: 1px; }
+    .checklist .text span   { font-size: 13px; color: var(--muted); }
+
+    /* action box */
+    .action-box {
+      background: var(--amber-light);
+      border: 1px solid var(--amber-border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+    }
+    .action-box h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--amber);
+      margin-bottom: 8px;
+    }
+    .action-box p  { font-size: 14px; color: #78350f; }
+    .action-box ul { padding-left: 18px; font-size: 14px; color: #78350f; margin-top: 6px; }
+    .action-box ul li { margin-bottom: 5px; }
+
+    /* how it works */
+    .steps-flow { display: flex; flex-direction: column; gap: 0; }
+    .flow-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .flow-row:last-child { border-bottom: none; }
+    .flow-num {
+      width: 28px;
+      height: 28px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .flow-row .body h3  { font-size: 14px; font-weight: 600; }
+    .flow-row .body p   { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    /* channels table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      padding: 9px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .pill.live    { background: var(--green-light); color: var(--green); }
+    .pill.pending { background: var(--amber-light); color: var(--amber); }
+
+    /* safety */
+    .safety {
+      background: var(--green-light);
+      border: 1px solid var(--green-mid);
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .safety h3 { font-size: 14px; font-weight: 700; color: var(--green); margin-bottom: 10px; }
+    .safety ul { padding-left: 18px; font-size: 14px; color: #1a3d14; }
+    .safety ul li { margin-bottom: 6px; }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo-bar">
+    <div class="logo-circle">🌿</div>
+    <div>
+      <div class="brand">Metabelly</div>
+      <div class="sub">AI Triage System</div>
+    </div>
+  </div>
+
+  <div class="date-line">Project update — June 2026</div>
+  <h1>Your inbox is now automated</h1>
+  <p class="intro">Here's a plain-English summary of what's live, what's coming, and the two things we need from you to finish.</p>
+
+  <!-- HOW IT WORKS -->
+  <section>
+    <h2>How it works</h2>
+    <div class="steps-flow">
+      <div class="flow-row">
+        <div class="flow-num">1</div>
+        <div class="body">
+          <h3>Email arrives at support@ or info@</h3>
+          <p>The system picks it up the moment it lands — no manual checking needed.</p>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-num">2</div>
+        <div class="body">
+          <h3>AI reads and categorises it</h3>
+          <p>Every message is classified in seconds: is it a product question, a health concern, an order issue, or a business inquiry? What language is it in? Does a human need to respond?</p>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-num">3</div>
+        <div class="body">
+          <h3>Your team gets notified in Slack</h3>
+          <p>The right channel gets a summary: who sent it, what it's about, and a direct link to reply in Gmail. No inbox digging.</p>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-num">4</div>
+        <div class="body">
+          <h3>Every weekday at 8am — morning briefing</h3>
+          <p>A summary of unread messages is posted to Slack so your team starts the day knowing exactly what's waiting.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLACK CHANNELS -->
+  <section>
+    <h2>Your Slack channels</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th>What goes there</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>#triage-urgent</strong></td>
+          <td>Emergency or distress messages — immediate attention required</td>
+          <td><span class="pill live">Live</span></td>
+        </tr>
+        <tr>
+          <td><strong>#triage-medical</strong></td>
+          <td>Health questions — IBS, symptoms, medication, conditions</td>
+          <td><span class="pill live">Live</span></td>
+        </tr>
+        <tr>
+          <td><strong>#triage-orders</strong></td>
+          <td>Shipping, tracking, returns, payment issues</td>
+          <td><span class="pill live">Live</span></td>
+        </tr>
+        <tr>
+          <td><strong>#triage-business</strong></td>
+          <td>Partnerships, wholesale, press, clinics</td>
+          <td><span class="pill live">Live</span></td>
+        </tr>
+        <tr>
+          <td><strong>#triage-faq</strong></td>
+          <td>Product questions, ingredients, dosage, delivery</td>
+          <td><span class="pill live">Live</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- WHAT IS DONE -->
+  <section>
+    <h2>What's live right now</h2>
+    <ul class="checklist">
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>Both inboxes monitored</strong>
+          <span>support@metabelly.com and info@metabelly.com are both being watched in real time.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>AI classification running</strong>
+          <span>Every email is categorised (FAQ / Medical / Order / Business), prioritised, and language-detected — automatically.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>Slack notifications working</strong>
+          <span>All 5 channels receiving the right messages with sender, subject, summary, and a one-click link to reply.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>Daily briefing active</strong>
+          <span>Weekdays at 8am, your team sees how many messages are waiting and what needs attention.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>Replies go out as support@metabelly.com</strong>
+          <span>When a reply is sent via Gmail, customers see it from support@metabelly.com — not an internal automation address.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot done">✓</div>
+        <div class="text">
+          <strong>Medical messages always escalated</strong>
+          <span>Any message mentioning health conditions, symptoms, or medication goes straight to #triage-medical and waits for a human. No automated response.</span>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- WHAT IS PENDING -->
+  <section>
+    <h2>What's coming next</h2>
+    <ul class="checklist">
+      <li>
+        <div class="dot pending">!</div>
+        <div class="text">
+          <strong>Auto-replies for FAQ questions</strong>
+          <span>The system can automatically answer common product questions — but only using answers you've approved. We need your FAQ list first (see below).</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot pending">!</div>
+        <div class="text">
+          <strong>Booking / consultation link</strong>
+          <span>We have a placeholder link in place. Once you've decided on your booking tool, we update one field and it's live.</span>
+        </div>
+      </li>
+      <li>
+        <div class="dot pending">!</div>
+        <div class="text">
+          <strong>Website chat widget (Phase 2)</strong>
+          <span>Replace the current chat bubble on metabelly.com with a smart widget that uses the same AI triage — product questions get instant answers, everything else goes to the right Slack channel.</span>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ACTION REQUIRED -->
+  <section>
+    <h2>What we need from you</h2>
+
+    <div class="action-box">
+      <h3>1 — FAQ list</h3>
+      <p>To enable automatic replies, we need your approved answers to the most common customer questions. A simple Google Doc or email is fine. Questions we'd expect to cover:</p>
+      <ul>
+        <li>What are the ingredients in each product?</li>
+        <li>Is it vegan / gluten-free / allergen-free?</li>
+        <li>How much to take and when?</li>
+        <li>How long until I see results?</li>
+        <li>Which countries do you ship to?</li>
+        <li>How long does delivery take?</li>
+        <li>What is your return policy?</li>
+        <li>How do I track my order?</li>
+      </ul>
+      <p style="margin-top:10px;"><strong>Important:</strong> the system will only use answers from this list — it will never improvise or guess. If a question isn't covered, it routes to your team instead.</p>
+    </div>
+
+    <div class="action-box" style="margin-top:12px;">
+      <h3>2 — Booking / consultation link</h3>
+      <p>You mentioned wanting to move away from Calendly. Once you've decided on the new tool (or confirmed you're keeping Calendly), send us the link and we'll update it straight away.</p>
+    </div>
+  </section>
+
+  <!-- SAFETY -->
+  <section>
+    <h2>Safety &amp; data</h2>
+    <div class="safety">
+      <h3>What we will never do</h3>
+      <ul>
+        <li>Send any unsolicited content to your customers</li>
+        <li>Generate or suggest medical advice of any kind</li>
+        <li>Auto-reply to health questions — these always go to a human</li>
+        <li>Store raw email content — messages are processed and discarded</li>
+        <li>Send anything outside the approved FAQ list once auto-reply is enabled</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Questions? Reply to this email and we'll get back to you.<br/>
+    Metabelly AI Triage System &mdash; June 2026
+  </footer>
+
+</div>
+</body>
+</html>

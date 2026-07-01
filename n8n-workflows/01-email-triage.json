@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "01-email-triage",
   "nodes": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst sender = email.from || email.From || email.sender || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\n\n// Debug: log all keys\nconst allKeys = Object.keys(email).join(', ');\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000),\n    _debug_keys: allKeys\n  }\n}];"
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst sender = email.from || email.From || email.sender || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000)\n  }\n}];"
       },
       "id": "extract-email",
       "name": "Extract Email Fields",
@@ -36,36 +36,40 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=Classify this customer email for Metabelly (Croatian gut health brand - fiber supplements, microbiome analysis).\n\nReturn ONLY a valid JSON object, no other text, no markdown, no explanation:\n{\n  \"category\": \"FAQ|MEDICAL|ORDER|BUSINESS\",\n  \"priority\": \"P1|P2|P3\",\n  \"language\": \"HR|EN\",\n  \"summary\": \"one sentence in English\",\n  \"requires_human\": true|false,\n  \"suggested_action\": \"short action\",\n  \"auto_reply\": \"reply text or empty string\"\n}\n\nRules:\n- requires_human=false and auto_reply ONLY when the customer asks a SPECIFIC, CLEAR question about ingredients, dosage, or delivery that can be answered factually. Set category=FAQ, priority=P3.\n- If the email is a contact form submission, general message, newsletter signup, automated notification, or does NOT contain a direct question — set requires_human=true, auto_reply=\"\"\n- If unsure whether to auto-reply, always set requires_human=true, auto_reply=\"\"\n- MEDICAL (IBS, pain, disease, symptoms, medical conditions) = P2, requires_human=true, auto_reply=\"\"\n- ORDER (shipping, payment, returns, orders) = P2, requires_human=true, auto_reply=\"\"\n- BUSINESS (partnerships, wholesale, press, collaboration) = P2, requires_human=true, auto_reply=\"\"\n- P1 only for medical emergencies\n\nEmail to classify:\n{{ $json.body }}",
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 1024,\n  system: `You are Luka, an AI assistant for Metabelly (Croatian gut health brand). Classify customer emails and write auto-replies using ONLY the knowledge base below.\n\nKNOWLEDGE BASE:\n- Metabelly Fiber 300g = 34€, 30 servings, resistant dextrins from corn starch, allergen-free, neutral taste\n- Family Pack 3×300g = 96€ (promo)\n- Microbiome Analysis Standard = 349€, Premium = 548€\n- Usage: 10g in 200ml cold non-carbonated drink, wait 10s, stir. Morning or between meals. Max 20g/day\n- Free delivery in Croatia via DPD, 1-3 business days\n- Payment: card or bank transfer\n- Returns: 15 days, open products OK, no returns on microbiome analysis\n- 10% discount on first purchase with newsletter signup\n- Contact: support@metabelly.com\n- NEVER give medical diagnoses or treatment advice\n- For medical conditions (IBS, Crohn's, pregnancy, medication) — always recommend consulting a doctor\n\nLANGUAGE RULE:\n- Detect the language of the customer email\n- If Croatian (HR): write auto_reply in Croatian\n- If English (EN): write auto_reply in English\n- Match the customer's language exactly\n\nCATEGORIES:\n- FAQ: product questions, ingredients, dosage, delivery, price, usage\n- MEDICAL: health conditions, symptoms, medication, IBS, Crohn's, pregnancy\n- ORDER: shipping, tracking, returns, payment issues, order problems\n- BUSINESS: wholesale, partnerships, press, collaboration\n- URGENT: distress, emergency\n\nPRIORITY:\n- P1: emergency/distress\n- P2: needs human (medical, order, business)\n- P3: routine FAQ that can be auto-answered\n\nAUTO-REPLY RULES:\n- Only set requires_human=false and write auto_reply for clear P3 FAQ questions\n- Auto-reply must use ONLY information from the knowledge base above\n- Never improvise or add information not in the knowledge base\n- For anything medical, order-related, or unclear: requires_human=true, auto_reply=''\n- End every auto-reply with: HR='Za sva ostala pitanja obratite nam se na support@metabelly.com' / EN='For any other questions contact us at support@metabelly.com'\n\nReturn ONLY valid JSON — no markdown, no extra text:\n{\"category\": \"FAQ|MEDICAL|ORDER|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"language\": \"HR|EN\", \"summary\": \"one sentence in English\", \"requires_human\": true, \"suggested_action\": \"short action for the team\", \"auto_reply\": \"\"}`,\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.sender + '\\nBody: ' + $json.body\n    }\n  ]\n}) }}",
         "options": {}
       },
-      "id": "llm-chain",
-      "name": "Luka — Classify with Mistral",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.4,
+      "id": "classify-claude",
+      "name": "Luka — Classify with Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [700, 300]
     },
     {
       "parameters": {
-        "model": "mistral-small-latest",
-        "options": {}
-      },
-      "id": "mistral-model",
-      "name": "Mistral Model",
-      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
-      "typeVersion": 1,
-      "position": [700, 500],
-      "credentials": {
-        "mistralCloudApi": {
-          "id": "",
-          "name": "Mistral Cloud account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const text = response.text || response.output || JSON.stringify(response);\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  classification = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nconst webhookMap = {\n  MEDICAL: 'YOUR_SLACK_WEBHOOK_MEDICAL',\n  ORDER: 'YOUR_SLACK_WEBHOOK_ORDER',\n  BUSINESS: 'YOUR_SLACK_WEBHOOK_BUSINESS',\n  FAQ: 'YOUR_SLACK_WEBHOOK_FAQ'\n};\n\nconst urgentWebhook = 'YOUR_SLACK_WEBHOOK_URGENT';\n\nconst priorityEmoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' };\nconst emoji = priorityEmoji[classification.priority] || 'ℹ️';\nconst urgentPrefix = classification.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst slackWebhook = webhookMap[classification.category] || webhookMap['FAQ'];\nconst gmailLink = `https://mail.google.com/mail/u/0/#inbox/${emailData.threadId}`;\nconst slackMessage = `${urgentPrefix}${emoji} *Nova poruka — ${classification.category}* (${classification.priority})\\n*Od:* ${emailData.sender}\\n*Predmet:* ${emailData.subject}\\n*Sažetak:* ${classification.summary}\\n*Akcija:* ${classification.suggested_action}\\n*Auto-odgovor:* ${classification.requires_human ? 'Ne — čeka odgovor' : 'Da'}\\n<${gmailLink}|📧 Otvori i odgovori u Gmailu>`;\n\nconst closingNote = classification.language === 'HR'\n  ? `\\n\\nZa sva ostala pitanja, odgovorite na ovaj email i naš tim će vam se javiti.`\n  : `\\n\\nFor any other questions, simply reply to this email and our team will get back to you.`;\n\nlet autoReply = '';\nif (!classification.requires_human) {\n  autoReply = (classification.auto_reply || '') + closingNote;\n}\n\nreturn [{ json: { \n  ...emailData, \n  ...classification,\n  slackWebhook,\n  urgentWebhook,\n  slackMessage,\n  autoReply,\n  isP1: classification.priority === 'P1',\n  canAutoReply: false\n} }];"
+        "jsCode": "const response = $input.first().json;\nlet classification;\ntry {\n  const content = response.content[0].text;\n  classification = JSON.parse(content);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nconst webhookMap = {\n  MEDICAL: $vars.SLACK_WEBHOOK_MEDICAL,\n  ORDER: $vars.SLACK_WEBHOOK_ORDER,\n  BUSINESS: $vars.SLACK_WEBHOOK_BUSINESS,\n  FAQ: $vars.SLACK_WEBHOOK_FAQ,\n  URGENT: $vars.SLACK_WEBHOOK_URGENT\n};\n\nconst priorityEmoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' };\nconst emoji = priorityEmoji[classification.priority] || 'ℹ️';\nconst urgentPrefix = classification.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst slackWebhook = webhookMap[classification.category] || webhookMap['FAQ'];\nconst gmailLink = 'https://mail.google.com/mail/u/0/#inbox/' + emailData.threadId;\nconst slackMessage = urgentPrefix + emoji + ' *Nova poruka — ' + classification.category + '* (' + classification.priority + ')\\n*Od:* ' + emailData.sender + '\\n*Predmet:* ' + emailData.subject + '\\n*Sažetak:* ' + classification.summary + '\\n*Akcija:* ' + classification.suggested_action + '\\n*Auto-odgovor:* ' + (classification.requires_human ? 'Ne — čeka odgovor' : 'Da') + '\\n<' + gmailLink + '|📧 Otvori i odgovori u Gmailu>';\n\nconst canAutoReply = !classification.requires_human && !!classification.auto_reply;\n\nreturn [{ json: { \n  ...emailData, \n  ...classification,\n  slackWebhook,\n  urgentWebhook: $vars.SLACK_WEBHOOK_URGENT,\n  slackMessage,\n  autoReply: classification.auto_reply || '',\n  isP1: classification.priority === 'P1',\n  canAutoReply\n} }];"
       },
       "id": "parse-result",
       "name": "Parse & Prepare",
@@ -161,9 +165,7 @@
         "messageId": "={{ $('Parse & Prepare').first().json.gmailId }}",
         "threadId": "={{ $('Parse & Prepare').first().json.threadId }}",
         "message": "={{ $('Parse & Prepare').first().json.autoReply }}",
-        "options": {
-          "sendAs": "support@metabelly.com"
-        }
+        "options": {}
       },
       "id": "send-reply",
       "name": "Send Gmail Reply",
@@ -180,7 +182,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "YOUR_SLACK_WEBHOOK_FAQ",
+        "url": "={{ $vars.SLACK_WEBHOOK_FAQ }}",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -204,12 +206,9 @@
       "main": [[{ "node": "Extract Email Fields", "type": "main", "index": 0 }]]
     },
     "Extract Email Fields": {
-      "main": [[{ "node": "Luka — Classify with Mistral", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Luka — Classify with Claude", "type": "main", "index": 0 }]]
     },
-    "Mistral Model": {
-      "ai_languageModel": [[{ "node": "Luka — Classify with Mistral", "type": "ai_languageModel", "index": 0 }]]
-    },
-    "Luka — Classify with Mistral": {
+    "Luka — Classify with Claude": {
       "main": [[{ "node": "Parse & Prepare", "type": "main", "index": 0 }]]
     },
     "Parse & Prepare": {

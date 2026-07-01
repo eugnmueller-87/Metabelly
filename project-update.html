@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metabelly — Project Update</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #3d6b35;
+      --green-light: #eef4ec;
+      --green-mid:   #c6ddc2;
+      --amber:       #b45309;
+      --amber-light: #fef3c7;
+      --red:         #b91c1c;
+      --red-light:   #fee2e2;
+      --blue:        #1d4ed8;
+      --blue-light:  #eff6ff;
+      --grey:        #374151;
+      --grey-light:  #f9fafb;
+      --border:      #e5e7eb;
+      --text:        #111827;
+      --muted:       #6b7280;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: #f3f4f6;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--green);
+      color: #fff;
+      padding: 48px 40px 40px;
+    }
+    header .meta {
+      font-size: 13px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: .7;
+      margin-bottom: 10px;
+    }
+    header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+    header p {
+      margin-top: 8px;
+      font-size: 16px;
+      opacity: .85;
+      max-width: 620px;
+    }
+    .header-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .header-tags span {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    section { margin-bottom: 48px; }
+
+    h2 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── STAT CARDS ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    .stat {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .stat .number {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--green);
+    }
+    .stat .label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 12px;
+    }
+    .card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .card p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 6px;
+    }
+    .badge.done    { background: var(--green-light);  color: var(--green); }
+    .badge.open    { background: var(--amber-light);  color: var(--amber); }
+    .badge.blocked { background: var(--red-light);    color: var(--red);   }
+    .badge.phase2  { background: var(--blue-light);   color: var(--blue);  }
+
+    /* ── CHECKLIST ── */
+    .checklist { list-style: none; }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist li .icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .icon.done    { background: var(--green-light); color: var(--green); }
+    .icon.open    { background: var(--amber-light); color: var(--amber); }
+    .icon.blocked { background: var(--red-light);   color: var(--red);   }
+    .checklist li .text { flex: 1; }
+    .checklist li .note {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── FLOW ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      overflow-x: auto;
+    }
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 100px;
+      text-align: center;
+    }
+    .flow-step .icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      background: var(--green-light);
+      border: 1px solid var(--green-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .flow-step .name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .flow-step .sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .flow-arrow {
+      font-size: 20px;
+      color: var(--green-mid);
+      padding: 0 6px;
+      margin-bottom: 20px;
+    }
+
+    /* ── TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th {
+      background: var(--grey-light);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    td code {
+      font-family: monospace;
+      font-size: 12px;
+      background: var(--grey-light);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* ── BLOCKERS BOX ── */
+    .blocker-box {
+      background: var(--red-light);
+      border: 1px solid #fca5a5;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+    }
+    .blocker-box h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+    .blocker-box ul {
+      padding-left: 18px;
+      font-size: 14px;
+      color: var(--red);
+    }
+    .blocker-box ul li { margin-bottom: 4px; }
+
+    /* ── NEXT STEPS ── */
+    .steps { counter-reset: steps; }
+    .step {
+      display: flex;
+      gap: 16px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-body h3 { font-size: 14px; font-weight: 600; }
+    .step-body p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    /* ── PHASE 2 ── */
+    .phase2-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .phase2-card {
+      background: var(--blue-light);
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .phase2-card h3 { font-size: 14px; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
+    .phase2-card p  { font-size: 13px; color: #1e40af; }
+    .phase2-card .effort {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(29,78,216,.12);
+      color: var(--blue);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 24px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="meta">Project Update &mdash; June 2026</div>
+  <h1>Metabelly AI Triage System</h1>
+  <p>Automated email triage, Slack routing, and AI classification for Metabelly's customer inbox. Built on n8n Cloud + Mistral AI.</p>
+  <div class="header-tags">
+    <span>Client: Metabelly</span>
+    <span>n8n Cloud</span>
+    <span>Mistral AI</span>
+    <span>Gmail OAuth2</span>
+    <span>Slack Webhooks</span>
+    <span>Phase 1 — Active</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat">
+      <div class="number">5</div>
+      <div class="label">n8n workflows built</div>
+    </div>
+    <div class="stat">
+      <div class="number">5</div>
+      <div class="label">Slack channels wired</div>
+    </div>
+    <div class="stat">
+      <div class="number">4</div>
+      <div class="label">Email categories classified</div>
+    </div>
+    <div class="stat">
+      <div class="number">2</div>
+      <div class="label">Inboxes monitored</div>
+    </div>
+    <div class="stat">
+      <div class="number">0</div>
+      <div class="label">Unsolicited auto-replies</div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <section>
+    <h2>How it works</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="icon-box">📧</div>
+        <div class="name">Email arrives</div>
+        <div class="sub">support@ or info@</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="icon-box">🤖</div>
+        <div class="name">Luka classifies</div>
+        <div class="sub">Mistral AI</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="icon-box">📊</div>
+        <div class="name">Category + priority</div>
+        <div class="sub">FAQ / MEDICAL / ORDER / BUSINESS</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="icon-box">💬</div>
+        <div class="name">Slack notified</div>
+        <div class="sub">Right channel</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="icon-box">🔗</div>
+        <div class="name">Gmail link</div>
+        <div class="sub">1-click to reply</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT WE DID -->
+  <section>
+    <h2>What we built</h2>
+    <ul class="checklist">
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Email triage workflow (01-email-triage)</strong>
+          <span class="note">Gmail trigger → Mistral classification → Slack notification with sender, subject, summary, and direct Gmail reply link</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Slack routing (02-slack-notify)</strong>
+          <span class="note">5 channels: #triage-urgent, #triage-medical, #triage-orders, #triage-business, #triage-faq. Each message lands in the right channel automatically.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Auto-reply engine (03-auto-reply) — built, currently disabled</strong>
+          <span class="note">Maja composes replies in Croatian or English. Disabled until client provides approved FAQ answers — no unsolicited content will be sent.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Daily briefing (04-daily-briefing)</strong>
+          <span class="note">Every weekday at 8am: unread email count posted to #triage-faq. Team knows what's waiting before the day starts.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Chat widget workflow (05-chat-widget) — ready to deploy</strong>
+          <span class="note">n8n webhook endpoint that accepts messages from a WordPress chat widget, classifies them with Mistral, and routes to Slack or sends auto-reply.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Both inboxes wired</strong>
+          <span class="note">support@metabelly.com and info@metabelly.com both trigger the workflow. Emails arrive, get classified, and appear in the correct Slack channel.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Send-as support@metabelly.com confirmed working</strong>
+          <span class="note">Gmail replies go out from support@metabelly.com via SiteGround SMTP — not the agentmetabelly@ address the client would see.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Switched to Slack incoming webhooks</strong>
+          <span class="note">Bot was deleted from Metabelly workspace. Rebuilt with incoming webhooks — simpler, no bot needed, all 5 channels posting correctly.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Mistral JSON classification fixed</strong>
+          <span class="note">Mistral was returning plain text answers instead of JSON. Fixed by moving classification prompt to the user message field — now returns clean JSON every time.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Medical guardrail enforced</strong>
+          <span class="note">Medical emails are never auto-replied. Always routed to a human via #triage-medical. No medical advice is generated or sent under any condition.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>Routing confirmed working across all categories</strong>
+          <span class="note">BUSINESS → #triage-business, MEDICAL → #triage-medical, FAQ → #triage-faq all tested with real emails and confirmed live in Slack.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">
+          <strong>System fully documented and version controlled</strong>
+          <span class="note">All workflows are documented, backed up, and ready to hand over at any time.</span>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- BLOCKERS -->
+  <section>
+    <h2>Blockers — waiting on client</h2>
+    <div class="blocker-box">
+      <h3>These items are blocking full go-live</h3>
+      <ul>
+        <li><strong>FAQ knowledge base</strong> — We need your approved Q&amp;A pairs before auto-replies can go out. Until received, no automated responses will be sent to customers.</li>
+        <li><strong>Booking link</strong> — Send us your final consultation or booking URL and we'll update it immediately. Currently pointing to your contact page as a placeholder.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- OPEN ITEMS -->
+  <section>
+    <h2>Open items</h2>
+    <ul class="checklist">
+      <li>
+        <div class="icon open">!</div>
+        <div class="text">
+          <strong>Auto-reply waiting for your FAQ list</strong>
+          <span class="note">The system is ready to send automatic answers to common questions. It will only use answers you've approved — nothing else. Send us the list and it goes live within a day.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon open">!</div>
+        <div class="text">
+          <strong>Booking link needs your final URL</strong>
+          <span class="note">We have a placeholder pointing to your contact page. One update once you confirm your booking tool.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon open">!</div>
+        <div class="text">
+          <strong>#triage-orders pending a live test</strong>
+          <span class="note">Routing is in place. Needs one real order-related email to confirm everything posts to the right channel.</span>
+        </div>
+      </li>
+      <li>
+        <div class="icon blocked">✕</div>
+        <div class="text">
+          <strong>Website chat widget — ready, not yet deployed</strong>
+          <span class="note">Built and tested. Waiting for your confirmation to replace the current chat bubble and WordPress access to install it.</span>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- WORKFLOW STATUS -->
+  <section>
+    <h2>Workflow status</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Workflow</th>
+          <th>Status</th>
+          <th>What it does</th>
+          <th>Blocker</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>01-email-triage</code></td>
+          <td><span class="badge done">Active</span></td>
+          <td>Gmail → classify → Slack notify</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>02-slack-notify</code></td>
+          <td><span class="badge done">Active</span></td>
+          <td>Routes to correct Slack channel</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>03-auto-reply</code></td>
+          <td><span class="badge open">Built, disabled</span></td>
+          <td>Composes + sends Gmail reply</td>
+          <td>Waiting for approved FAQ list</td>
+        </tr>
+        <tr>
+          <td><code>04-daily-briefing</code></td>
+          <td><span class="badge done">Active</span></td>
+          <td>8am weekday inbox count → Slack</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>05-chat-widget</code></td>
+          <td><span class="badge open">Built, not deployed</span></td>
+          <td>WordPress chat → classify → Slack</td>
+          <td>Waiting for client confirmation + WP access</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- NEXT STEPS -->
+  <section>
+    <h2>What needs to happen to finish</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Client provides FAQ list</h3>
+          <p>A written document with approved Q&amp;A pairs for the most common customer questions — ingredients, dosage, delivery times, returns. Can be a Google Doc or simple email. This unlocks auto-reply.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Enable auto-replies using your approved FAQ answers</h3>
+          <p>Once we have your FAQ list, we wire it in as the only source of truth. The AI reads from your answers only — it cannot improvise or go off-script.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>Client decides on booking tool</h3>
+          <p>Replace the placeholder consultation link with the real URL. One field update in the auto-reply workflow. Takes 5 minutes once the URL is confirmed.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>Test #triage-orders with a real order email</h3>
+          <p>Send a test email about an order (shipping, tracking, return). Confirm it routes to #triage-orders correctly. Last untested channel.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h3>Deploy the website chat widget</h3>
+          <p>Confirm you want to replace the current chat bubble on metabelly.com and grant us WordPress access. We handle the rest — it's a single script tag install.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section>
+    <h2>Phase 2 — upsell opportunities</h2>
+    <div class="phase2-grid">
+      <div class="phase2-card">
+        <h3>WordPress chat widget</h3>
+        <p>Replace the HubSpot chat bubble on metabelly.com with a lightweight custom widget. Messages go through the same AI triage as email — right Slack channel, auto-reply for FAQs, no inbox noise. Delivered as a single &lt;script&gt; tag.</p>
+        <div class="effort">~1–2 days</div>
+      </div>
+      <div class="phase2-card">
+        <h3>WooCommerce order lookup</h3>
+        <p>When a customer writes about an order, the system pulls the order details from WooCommerce automatically and includes them in the Slack notification. The team replies with full context — no manual lookup needed.</p>
+        <div class="effort">~2–3 days</div>
+      </div>
+      <div class="phase2-card">
+        <h3>Enhanced daily briefing</h3>
+        <p>Add a breakdown by category to the morning briefing — how many FAQ, medical, order, and business messages are waiting. Optionally: average response time and oldest unanswered thread.</p>
+        <div class="effort">~0.5 days</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECURITY NOTE -->
+  <section>
+    <h2>Security &amp; compliance</h2>
+    <ul class="checklist">
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">No customer email content is stored — processed in memory only</div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">Slack summaries contain no personal health details or email addresses</div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">Medical questions always escalated to a human — never auto-resolved</div>
+      </li>
+      <li>
+        <div class="icon done">✓</div>
+        <div class="text">Auto-reply disabled — zero unsolicited content going to customers</div>
+      </li>
+<li>
+        <div class="icon done">✓</div>
+        <div class="text">No medical advice generated under any condition</div>
+      </li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  Metabelly AI Triage System &mdash; Project Update &mdash; June 2026
+</footer>
+
+</body>
+</html>

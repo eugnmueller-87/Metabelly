@@ -1,0 +1,55 @@
+{
+  "name": "09-build-customers",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Run Once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ?pageSize=100",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-page1",
+      "name": "Fetch Contacts Page 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch ALL pages from Airtable Contacts table and group by customer email\nconst AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;\nconst CONTACTS_URL = 'https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblHtfXkcsmWjk1aQ';\nconst CUSTOMERS_URL = 'https://api.airtable.com/v0/appT9NVuu8MyFHFsj/tblxs0QLftdL72IUV';\nconst BATCH_SIZE = 10;\n\n// Step 1: Fetch all contact records\nconst allRecords = [];\nlet offset = null;\ndo {\n  const url = CONTACTS_URL + '?pageSize=100' + (offset ? '&offset=' + offset : '');\n  const page = await this.helpers.httpRequest({\n    method: 'GET',\n    url,\n    headers: { 'Authorization': 'Bearer ' + AIRTABLE_TOKEN }\n  });\n  allRecords.push(...(page.records || []));\n  offset = page.offset;\n  if (offset) await new Promise(r => setTimeout(r, 200));\n} while (offset);\n\n// Step 2: Group by email\nconst customerMap = {};\nfor (const rec of allRecords) {\n  const f = rec.fields;\n  const email = (f.Email || '').toLowerCase().trim();\n  if (!email || email.includes('metabelly')) continue;\n\n  if (!customerMap[email]) {\n    customerMap[email] = {\n      name: f.Customer || '(unknown)',\n      email,\n      phone: f.Phone || '',\n      totalOrders: 0,\n      totalSpent: 0,\n      products: [],\n      lastOrderDate: null,\n      gmailLinks: []\n    };\n  }\n\n  const c = customerMap[email];\n  if (f.Customer && f.Customer !== '(unknown)') c.name = f.Customer;\n  if (f.Phone) c.phone = f.Phone;\n  if (f.Total && Number(f.Total) > 0) {\n    c.totalOrders++;\n    c.totalSpent += Number(f.Total);\n  }\n  if (f.Product) c.products.push(f.Product);\n  if (f['Gmail Link']) c.gmailLinks.push(f['Gmail Link']);\n  if (f.Received) {\n    const d = new Date(f.Received);\n    if (!c.lastOrderDate || d > new Date(c.lastOrderDate)) {\n      c.lastOrderDate = f.Received;\n    }\n  }\n}\n\n// Step 3: Batch insert into Customers table\nconst customers = Object.values(customerMap);\nlet inserted = 0;\n\nfor (let i = 0; i < customers.length; i += BATCH_SIZE) {\n  const batch = customers.slice(i, i + BATCH_SIZE);\n  const records = batch.map(c => ({\n    fields: {\n      Name: c.name,\n      Email: c.email,\n      Phone: c.phone || '',\n      'Total Orders': c.totalOrders,\n      'Total Spent': Math.round(c.totalSpent * 100) / 100,\n      'Products Bought': [...new Set(c.products)].join('\\n'),\n      'Last Order Date': c.lastOrderDate || null,\n      Notes: c.gmailLinks.slice(0, 5).join('\\n')\n    }\n  })).map(r => {\n    // Remove empty/null fields\n    Object.keys(r.fields).forEach(k => {\n      if (r.fields[k] === '' || r.fields[k] === null || r.fields[k] === 0) delete r.fields[k];\n    });\n    return r;\n  });\n\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: CUSTOMERS_URL,\n    headers: {\n      'Authorization': 'Bearer ' + AIRTABLE_TOKEN,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ records })\n  });\n\n  inserted += batch.length;\n  await new Promise(r => setTimeout(r, 250));\n}\n\nreturn [{ json: { success: true, uniqueCustomers: customers.length, inserted } }];"
+      },
+      "id": "build-customers",
+      "name": "Build Customers Table",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Run Once": {
+      "main": [[{ "node": "Fetch Contacts Page 1", "type": "main", "index": 0 }]]
+    },
+    "Fetch Contacts Page 1": {
+      "main": [[{ "node": "Build Customers Table", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "metabelly" }]
+}
