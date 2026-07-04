@@ -48,7 +48,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "YOUR_SLACK_WEBHOOK_FAQ",
+        "url": "={{ $vars.SLACK_WEBHOOK_FAQ }}",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [

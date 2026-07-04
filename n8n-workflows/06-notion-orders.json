@@ -4,7 +4,7 @@
     {
       "parameters": {
         "pollTimes": {
-          "item": [{ "mode": "everyMinute" }]
+          "item": [{ "mode": "everyXMinutes", "value": 5 }]
         },
         "filters": {
           "q": "is:unread"
@@ -57,7 +57,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 256,\n  system: 'You are Luka, an email classifier for Metabelly (Croatian supplement brand). Classify customer emails. LANGUAGE RULE: detect the language the customer used and return HR, EN, or OTHER. Categories: ORDER (orders/shipping/payment), FAQ (product questions/ingredients/dosage), MEDICAL (health conditions/symptoms — always P1), BUSINESS (wholesale/partnerships), URGENT (distress/emergency). Priority: P1=urgent/medical, P2=needs human, P3=routine. Return ONLY valid JSON — no markdown, no extra text.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5',\n  max_tokens: 256,\n  system: 'You are Luka, an email classifier for Metabelly (Croatian supplement brand). Classify customer emails. LANGUAGE RULE: detect the language the customer used and return HR, EN, or OTHER. Categories: ORDER (orders/shipping/payment), FAQ (product questions/ingredients/dosage), MEDICAL (health conditions/symptoms — always P1), BUSINESS (wholesale/partnerships), URGENT (distress/emergency). Priority: P1=urgent/medical, P2=needs human, P3=routine. Return ONLY valid JSON — no markdown, no extra text.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
         "options": {}
       },
       "id": "classify-claude",

@@ -64,7 +64,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 256,\n  system: 'You are an email classifier for Metabelly, a Croatian supplement brand. Classify emails and detect the language the customer wrote in. Return ONLY valid JSON — no other text, no markdown.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5',\n  max_tokens: 256,\n  system: 'You are an email classifier for Metabelly, a Croatian supplement brand. Classify emails and detect the language the customer wrote in. Return ONLY valid JSON — no other text, no markdown.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
         "options": {}
       },
       "id": "classify-claude",
