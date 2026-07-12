@@ -27,14 +27,15 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.mistral.ai/v1/chat/completions",
-        "authentication": "none",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.MISTRAL_API_KEY }}"
+              "name": "anthropic-version",
+              "value": "2023-06-01"
             },
             {
               "name": "Content-Type",
@@ -44,18 +45,19 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'mistral-small-latest',\n  max_tokens: 512,\n  response_format: { type: 'json_object' },\n  messages: [\n    {\n      role: 'system',\n      content: 'You are Luka, a customer assistant for Metabelly — a Croatian gut health brand founded by Ena Melvan PhD.\\n\\nRULE: Answer ONLY using information from this knowledge base. If not covered — escalate. Never improvise.\\nNEVER give medical diagnoses, treatment advice, or medication interactions.\\nAlways respond in the same language the customer writes in (Croatian or English).\\n\\n=== PRODUCTS ===\\nMetabelly Fiber 300g = 34,00 €, 30 servings × 10g, resistant dextrins from corn starch, allergen-free, neutral taste/smell.\\nFamily Pack 3×300g = 96,00 € (promo) / 102,00 € (regular).\\nMicrobiome Analysis Standard = 349,00 € — home kit, 16S rRNA lab, microbiome report, 1h nutritionist consultation, results in 3-4 weeks.\\nMicrobiome Analysis Premium = 548,00 € — everything in Standard + repeat analysis after 6 months, 3 consultations, progress tracking.\\nAnalysis is NOT a medical diagnosis.\\n\\n=== NUTRITION (Fiber) ===\\n10g serving: 20 kcal (84 kJ), min. 8,2g fiber. 20g: 40 kcal, min. 16,4g fiber.\\n\\n=== HOW TO USE ===\\n1 level tablespoon (10g) in 200ml cold/lukewarm non-carbonated drink. Wait 10 seconds, stir, drink immediately.\\nTiming: morning before meals or between meals, same time every day.\\nMax: 10g morning + 10g evening — do not exceed.\\nOK: water, smoothie, juice, yogurt, cold non-carbonated drinks.\\nAvoid: hot drinks, carbonated drinks.\\nBloating: start gradually, drink more water; persists — consult a doctor.\\n\\n=== DELIVERY ===\\nFree in Croatia via DPD. 1-3 business days. No weekends/holidays. Tracking by email.\\n\\n=== PAYMENT ===\\nCredit/debit card or online bank transfer.\\n\\n=== RETURNS ===\\n15 days from receipt. Opened Fiber OK if not significantly used. Analysis non-returnable. Return shipping paid by customer unless damaged/wrong item.\\n\\n=== DISCOUNTS ===\\n10% off first purchase with newsletter signup. Family Pack saves vs 3 individual packs.\\n\\n=== SAFETY ===\\nPregnancy: consult OB/GYN. Breastfeeding/medication: consult doctor. Children: consult pediatrician. Crohn/colitis/celiac: consult doctor. Not a meal replacement or medical therapy.\\n\\n=== CONTACT ===\\nsupport@metabelly.com | metabelly.com/kontakt/ | Free consultations available.\\n\\n=== FAQ — 43 VERIFIED ANSWERS ===\\nKoliko košta Metabelly Fiber? 300g = 34,00 €, 30 porcija.\\nPostoji li veće pakiranje? Family Pack 3×300g = 96,00 € (promo).\\nKoliko košta analiza mikrobioma? Standard 349,00 €, Premium 548,00 €.\\nIma li popust? 10% uz newsletter.\\nŠto je Metabelly Fiber? Dodatak prehrani s prebiotičkim djelovanjem. Topiva vlakna neutralnog okusa.\\nKoji je sastojak? Rezistentni dekstrin iz kukuruznog škroba.\\nSadrži li alergene? Ne. Bez alergena, aditiva, sladila ni zasićenih masti.\\nKakav okus ima? Neutralan, ne mijenja okus napitka.\\nKoliko porcija? 300g = 30 porcija po 10g.\\nKoliko vlakana? 10g = min. 8,2g; 20g = min. 16,4g.\\nKoliko kalorija? 10g = 20 kcal; 20g = 40 kcal.\\nKako se koristi? 10g u 200ml negaziranog hladnog/mlakog napitka, 10s, promiješati, odmah.\\nKada uzimati? Ujutro ili između obroka, svaki dan isto vrijeme.\\nKoliko dnevno? 10g. Više: 10g ujutro + 10g navečer. Ne prekoračivati.\\nMogu li u kavu ili čaj? Ne.\\nMogu li u smoothie/sok/jogurt? Da.\\nTrebam li više vode? Da.\\nŠto ako izazove nadutost? Krenuti postupno, više vode. Ako traje — liječnik.\\nJe li zamjena za prehranu? Ne.\\nCrohn/kolitis/celijakija? Konzultacija s liječnikom PRIJE.\\nTrudnoća? Konzultacija s ginekologom.\\nDojenje/lijekovi? Konzultacija s liječnikom.\\nDjeca? Konzultacija s pedijatrom.\\nŠto je analiza mikrobioma? Test stolice od kuće + izvještaj + savjetovanje.\\nKako se provodi analiza? Kit na kućnu adresu, šaljete uzorak u unaprijed plaćenom paketu.\\nKada stižu rezultati analize? 3-4 tjedna emailom.\\nRazlika Standard vs Premium? Premium = Standard + ponovna analiza 6mj. + 3 savjetovanja.\\nJe li analiza medicinska dijagnoza? Ne.\\nJe li dostava besplatna? Da, u RH.\\nKoliko traje dostava? 1-3 radna dana.\\nDostavljate li vikendom? Ne.\\nKako pratiti narudžbu? Tracking broj emailom.\\nNačini plaćanja? Kartica ili online uplatnica.\\nMogu li vratiti proizvod? Da, 15 dana.\\nMogu li vratiti otvoreni Fiber? Da, ako nije znatno potrošen.\\nMogu li vratiti analizu? Ne.\\nTko plaća povrat? Kupac, osim kod greške dostave.\\nKako kontaktirati? support@metabelly.com ili metabelly.com/kontakt/\\nNisam sigurna je li za mene? Besplatne konzultacije na support@metabelly.com.\\nVrijede li uvijek iste cijene? Ne, vrijede aktualne cijene na webshopu.\\n\\n=== OUTPUT FORMAT ===\\nReturn ONLY a valid JSON object:\\n{\"category\": \"FAQ|MEDICAL|ORDER|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"language\": \"HR|EN\", \"summary\": \"one sentence in English\", \"requires_human\": true, \"suggested_action\": \"short action\", \"auto_reply\": \"\"}\\n\\nRULES:\\n- FAQ (P3, requires_human=false): price/ingredients/dosage/delivery/usage/returns — write auto_reply from KB only\\n- MEDICAL (P2, requires_human=true): health conditions, symptoms, medication — auto_reply empty\\n- ORDER (P2, requires_human=true): shipping problems, refunds, disputes — auto_reply empty\\n- BUSINESS (P2, requires_human=true): wholesale, partnerships — auto_reply empty\\n- URGENT (P1, requires_human=true): distress, emergency — auto_reply empty\\nauto_reply: match customer language exactly.\\nEnd every auto_reply: HR → Za sva ostala pitanja: support@metabelly.com | EN → For other questions: support@metabelly.com'\n    },\n    {\n      role: 'user',\n      content: $json.message\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-sonnet-5',\n  max_tokens: 1024,\n  system: 'You are Luka, a customer assistant for Metabelly — a Croatian gut health brand founded by Ena Melvan PhD.\\n\\nRULE: Answer any question you can REASON about from this knowledge base — including negatives (if something is not in the accepted list, the answer is no) and closely related rephrasings. Only escalate when the answer genuinely is not derivable from the KB. Do not escalate just because the exact words are missing. Never invent facts, prices, or policies not supported by the KB.\\nNEVER give medical diagnoses, treatment advice, or medication interactions.\\nCRITICAL LANGUAGE RULE: Detect the language of the CUSTOMER MESSAGE ONLY and reply in that exact language. English question -> English reply and language:EN. Croatian question -> Croatian reply and language:HR. Ignore the language of this knowledge base when deciding.\\n\\n=== PRODUCTS ===\\nMetabelly Fiber 300g = 34,00 €, 30 servings × 10g, resistant dextrins from corn starch, allergen-free, neutral taste/smell.\\nFamily Pack 3×300g = 96,00 € (promo) / 102,00 € (regular).\\nMicrobiome Analysis Standard = 349,00 € — home kit, 16S rRNA lab, microbiome report, 1h nutritionist consultation, results in 3-4 weeks.\\nMicrobiome Analysis Premium = 548,00 € — everything in Standard + repeat analysis after 6 months, 3 consultations, progress tracking.\\nAnalysis is NOT a medical diagnosis.\\n\\n=== NUTRITION (Fiber) ===\\n10g serving: 20 kcal (84 kJ), min. 8,2g fiber. 20g: 40 kcal, min. 16,4g fiber.\\n\\n=== HOW TO USE ===\\n1 level tablespoon (10g) in 200ml cold/lukewarm non-carbonated drink. Wait 10 seconds, stir, drink immediately.\\nTiming: morning before meals or between meals, same time every day.\\nMax: 10g morning + 10g evening — do not exceed.\\nOK: water, smoothie, juice, yogurt, cold non-carbonated drinks.\\nAvoid: hot drinks, carbonated drinks.\\nBloating: start gradually, drink more water; persists — consult a doctor.\\n\\n=== DELIVERY ===\\nFree in Croatia via DPD. 1-3 business days. No weekends/holidays. Tracking by email.\\n\\n=== PAYMENT ===\\nAccepted: credit/debit card or online bank transfer. Cash and cash-on-delivery are NOT accepted. If asked about any other method (cash, PayPal, crypto, installments), answer that only card and online bank transfer are available.\\n\\n=== RETURNS ===\\n15 days from receipt. Opened Fiber OK if not significantly used. Analysis non-returnable. Return shipping paid by customer unless damaged/wrong item.\\n\\n=== DISCOUNTS ===\\n10% off first purchase with newsletter signup. Family Pack saves vs 3 individual packs.\\n\\n=== SAFETY ===\\nPregnancy: consult OB/GYN. Breastfeeding/medication: consult doctor. Children: consult pediatrician. Crohn/colitis/celiac: consult doctor. Not a meal replacement or medical therapy.\\n\\n=== CONTACT ===\\nsupport@metabelly.com | metabelly.com/kontakt/ | Free consultations available.\\n\\n=== FAQ — 43 VERIFIED ANSWERS ===\\nKoliko košta Metabelly Fiber? 300g = 34,00 €, 30 porcija.\\nPostoji li veće pakiranje? Family Pack 3×300g = 96,00 € (promo).\\nKoliko košta analiza mikrobioma? Standard 349,00 €, Premium 548,00 €.\\nIma li popust? 10% uz newsletter.\\nŠto je Metabelly Fiber? Dodatak prehrani s prebiotičkim djelovanjem. Topiva vlakna neutralnog okusa.\\nKoji je sastojak? Rezistentni dekstrin iz kukuruznog škroba.\\nSadrži li alergene? Ne. Bez alergena, aditiva, sladila ni zasićenih masti.\\nKakav okus ima? Neutralan, ne mijenja okus napitka.\\nKoliko porcija? 300g = 30 porcija po 10g.\\nKoliko vlakana? 10g = min. 8,2g; 20g = min. 16,4g.\\nKoliko kalorija? 10g = 20 kcal; 20g = 40 kcal.\\nKako se koristi? 10g u 200ml negaziranog hladnog/mlakog napitka, 10s, promiješati, odmah.\\nKada uzimati? Ujutro ili između obroka, svaki dan isto vrijeme.\\nKoliko dnevno? 10g. Više: 10g ujutro + 10g navečer. Ne prekoračivati.\\nMogu li u kavu ili čaj? Ne.\\nMogu li u smoothie/sok/jogurt? Da.\\nTrebam li više vode? Da.\\nŠto ako izazove nadutost? Krenuti postupno, više vode. Ako traje — liječnik.\\nJe li zamjena za prehranu? Ne.\\nCrohn/kolitis/celijakija? Konzultacija s liječnikom PRIJE.\\nTrudnoća? Konzultacija s ginekologom.\\nDojenje/lijekovi? Konzultacija s liječnikom.\\nDjeca? Konzultacija s pedijatrom.\\nŠto je analiza mikrobioma? Test stolice od kuće + izvještaj + savjetovanje.\\nKako se provodi analiza? Kit na kućnu adresu, šaljete uzorak u unaprijed plaćenom paketu.\\nKada stižu rezultati analize? 3-4 tjedna emailom.\\nRazlika Standard vs Premium? Premium = Standard + ponovna analiza 6mj. + 3 savjetovanja.\\nJe li analiza medicinska dijagnoza? Ne.\\nJe li dostava besplatna? Da, u RH.\\nKoliko traje dostava? 1-3 radna dana.\\nDostavljate li vikendom? Ne.\\nKako pratiti narudžbu? Tracking broj emailom.\\nNačini plaćanja? Kartica ili online uplatnica.\\nMogu li vratiti proizvod? Da, 15 dana.\\nMogu li vratiti otvoreni Fiber? Da, ako nije znatno potrošen.\\nMogu li vratiti analizu? Ne.\\nTko plaća povrat? Kupac, osim kod greške dostave.\\nKako kontaktirati? support@metabelly.com ili metabelly.com/kontakt/\\nNisam sigurna je li za mene? Besplatne konzultacije na support@metabelly.com.\\nVrijede li uvijek iste cijene? Ne, vrijede aktualne cijene na webshopu.\\n\\n=== OUTPUT FORMAT ===\\nReturn ONLY a valid JSON object, no markdown, no code fences:\\n{\"category\": \"FAQ|MEDICAL|ORDER|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"language\": \"HR|EN\", \"summary\": \"one sentence in English\", \"requires_human\": true, \"suggested_action\": \"short action\", \"auto_reply\": \"\"}\\n\\nRULES:\\n- FAQ (P3, requires_human=false): ANY question you can answer or reason from the KB — price/ingredients/dosage/delivery/usage/returns/payment methods/discounts, including negative answers (e.g. cash not accepted) and rephrasings. Prefer answering over escalating. Write auto_reply from KB facts.\\n- MEDICAL (P2, requires_human=true): health conditions, symptoms, medication — auto_reply empty\\n- ORDER (P2, requires_human=true): shipping problems, refunds, disputes — auto_reply empty\\n- BUSINESS (P2, requires_human=true): wholesale, partnerships — auto_reply empty\\n- URGENT (P1, requires_human=true): distress, emergency — auto_reply empty\\nauto_reply: match customer language exactly.\\nEnd every auto_reply: HR → Za sva ostala pitanja: support@metabelly.com | EN → For other questions: support@metabelly.com',\n  messages: [\n    {\n      role: 'user',\n      content: $json.message\n    }\n  ]\n}) }}",
         "options": {}
       },
-      "id": "classify-mistral",
-      "name": "Classify with Mistral",
+      "id": "classify-claude",
+      "name": "Classify with Claude",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 300]
+      "position": [680, 300],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst chatData = $('Extract Chat Message').first().json;\n\nlet classification;\ntry {\n  const text = response.choices[0].message.content;\n  classification = JSON.parse(text);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nif (classification.summary) {\n  classification.summary = classification.summary.substring(0, 200).replace(/[<>]/g, '');\n}\n\nreturn [{ json: { ...chatData, ...classification } }];"
+        "jsCode": "const response = $input.first().json;\nconst chatData = $('Extract Chat Message').first().json;\n\n// Anthropic Messages API: text is at content[0].text.\n// n8n v4 HTTP node may also wrap the API body under .body — handle both.\nconst payload = (response && response.content) ? response : (response && response.body && response.body.content) ? response.body : response;\nconst text = payload && Array.isArray(payload.content) && payload.content[0] && payload.content[0].text\n  ? payload.content[0].text\n  : null;\n\nlet classification;\nif (text) {\n  try {\n    // Strip accidental code fences if the model added any.\n    const clean = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();\n    classification = JSON.parse(clean);\n  } catch (e) {\n    classification = {\n      category: 'FAQ', priority: 'P2', language: 'HR',\n      summary: ('Unparseable model output: ' + String(text)).substring(0, 200),\n      requires_human: true, suggested_action: 'Manual review needed', auto_reply: ''\n    };\n  }\n} else {\n  const err = payload && payload.error ? JSON.stringify(payload.error) : JSON.stringify(payload).substring(0, 300);\n  classification = {\n    category: 'FAQ', priority: 'P2', language: 'HR',\n    summary: ('Claude call failed: ' + err).substring(0, 200),\n    requires_human: true, suggested_action: 'Check Claude node', auto_reply: ''\n  };\n}\n\nif (classification.summary) {\n  classification.summary = classification.summary.substring(0, 200).replace(/[<>]/g, '');\n}\n\nreturn [{ json: { ...chatData, ...classification } }];"
       },
       "id": "parse-result",
       "name": "Parse Classification",
@@ -65,82 +67,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\nconst webhookMap = {\n  MEDICAL: $env.SLACK_WEBHOOK_MEDICAL,\n  ORDER:   $env.SLACK_WEBHOOK_ORDER,\n  BUSINESS: $env.SLACK_WEBHOOK_BUSINESS,\n  FAQ:     $env.SLACK_WEBHOOK_FAQ,\n  URGENT:  $env.SLACK_WEBHOOK_URGENT\n};\n\nconst emoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' }[d.priority] || 'ℹ️';\nconst urgentPrefix = d.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst slackWebhook = webhookMap[d.category] || webhookMap['FAQ'];\nconst slackMessage = urgentPrefix +\n  emoji + ' *Nova poruka — ' + d.category + '* (' + d.priority + ')\\n' +\n  '*Izvor:* Chat widget\\n' +\n  '*Poruka:* ' + d.message.substring(0, 300) + '\\n' +\n  '*Sažetak:* ' + d.summary + '\\n' +\n  '*Akcija:* ' + d.suggested_action + '\\n' +\n  '*Auto-odgovor:* ' + (d.requires_human ? 'Ne — čeka odgovor' : 'Da');\n\nreturn [{ json: {\n  ...d,\n  slackWebhook,\n  slackMessage,\n  isP1: d.priority === 'P1'\n} }];"
-      },
-      "id": "prepare-slack",
-      "name": "Prepare Slack Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 300]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $json.slackWebhook }}",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            { "name": "text", "value": "={{ $json.slackMessage }}" }
-          ]
-        },
-        "options": {}
-      },
-      "id": "notify-slack",
-      "name": "Notify Slack",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1340, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true },
-          "conditions": [
-            {
-              "id": "is-p1",
-              "leftValue": "={{ $('Prepare Slack Message').first().json.isP1 }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
-            }
-          ]
-        }
-      },
-      "id": "check-p1",
-      "name": "Is P1?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1560, 300]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=={{ $env.SLACK_WEBHOOK_URGENT }}",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "text",
-              "value": "=🚨 *P1 ALERT — Chat Widget*\n*Poruka:* {{ $('Prepare Slack Message').first().json.message.substring(0, 300) }}\n*Sažetak:* {{ $('Prepare Slack Message').first().json.summary }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "alert-urgent",
-      "name": "Alert Urgent",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1780, 160]
-    },
-    {
-      "parameters": {
-        "jsCode": "const d = $('Prepare Slack Message').first().json;\nconst autoReply = d.auto_reply || '';\n\nconst fallback = d.language === 'HR'\n  ? 'Hvala na vašoj poruci! Naš tim će vam odgovoriti uskoro. Za hitne upite: support@metabelly.com'\n  : 'Thank you for your message! Our team will get back to you shortly. For urgent enquiries: support@metabelly.com';\n\nreturn [{ json: {\n  auto_reply: autoReply || fallback,\n  requires_human: d.requires_human,\n  category: d.category,\n  priority: d.priority,\n  language: d.language\n} }];"
+        "jsCode": "const d = $input.first().json;\nconst autoReply = d.auto_reply || '';\n\nconst fallback = d.language === 'HR'\n  ? 'Hvala na vašoj poruci! Naš tim će vam odgovoriti uskoro. Za hitne upite: support@metabelly.com'\n  : 'Thank you for your message! Our team will get back to you shortly. For urgent enquiries: support@metabelly.com';\n\nreturn [{ json: {\n  auto_reply: autoReply || fallback,\n  requires_human: d.requires_human,\n  category: d.category,\n  priority: d.priority,\n  language: d.language\n} }];"
       },
       "id": "build-response",
       "name": "Build Webhook Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 440]
+      "position": [1120, 300]
     },
     {
       "parameters": {
@@ -159,7 +92,7 @@
       "name": "Respond to Widget",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2000, 440]
+      "position": [1340, 300]
     }
   ],
   "connections": {
@@ -167,27 +100,12 @@
       "main": [[{ "node": "Extract Chat Message", "type": "main", "index": 0 }]]
     },
     "Extract Chat Message": {
-      "main": [[{ "node": "Classify with Mistral", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Classify with Claude", "type": "main", "index": 0 }]]
     },
-    "Classify with Mistral": {
+    "Classify with Claude": {
       "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
     },
     "Parse Classification": {
-      "main": [[{ "node": "Prepare Slack Message", "type": "main", "index": 0 }]]
-    },
-    "Prepare Slack Message": {
-      "main": [[{ "node": "Notify Slack", "type": "main", "index": 0 }]]
-    },
-    "Notify Slack": {
-      "main": [[{ "node": "Is P1?", "type": "main", "index": 0 }]]
-    },
-    "Is P1?": {
-      "main": [
-        [{ "node": "Alert Urgent", "type": "main", "index": 0 }],
-        [{ "node": "Build Webhook Response", "type": "main", "index": 0 }]
-      ]
-    },
-    "Alert Urgent": {
       "main": [[{ "node": "Build Webhook Response", "type": "main", "index": 0 }]]
     },
     "Build Webhook Response": {
