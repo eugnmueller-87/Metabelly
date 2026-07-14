@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  const N8N_CHAT_URL = 'YOUR_N8N_BASE_URL/webhook/metabelly-chat';
-  const N8N_CONTACT_URL = 'YOUR_N8N_BASE_URL/webhook/metabelly-contact';
+  const N8N_CHAT_URL = 'https://metabelly.app.n8n.cloud/webhook/metabelly-chat';
+  const N8N_CONTACT_URL = 'https://metabelly.app.n8n.cloud/webhook/metabelly-contact';
 
   const STRINGS_HR = {
     title: 'Luka — Metabelly Asistent',
@@ -58,8 +58,8 @@
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: #2563eb;
-      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+      background: #7cb342;
+      box-shadow: 0 4px 16px rgba(124,179,66,0.4);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -68,7 +68,7 @@
       transition: transform 0.2s, box-shadow 0.2s;
       border: none;
     }
-    #mb-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(37,99,235,0.5); }
+    #mb-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(124,179,66,0.5); }
     #mb-chat-bubble svg { width: 26px; height: 26px; fill: #fff; }
 
     #mb-chat-window {
@@ -93,7 +93,7 @@
     #mb-chat-window.mb-hidden { opacity: 0; pointer-events: none; transform: translateY(12px); }
 
     #mb-chat-header {
-      background: #2563eb;
+      background: #7cb342;
       color: #fff;
       padding: 14px 16px;
       display: flex;
@@ -138,7 +138,7 @@
       white-space: pre-wrap;
     }
     .mb-msg-bot { background: #f1f5f9; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 4px; }
-    .mb-msg-user { background: #2563eb; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .mb-msg-user { background: #7cb342; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
 
     .mb-typing {
       display: flex; gap: 4px; align-items: center;
@@ -178,14 +178,14 @@
       resize: none;
     }
     #mb-contact-form input:focus,
-    #mb-contact-form textarea:focus { border-color: #2563eb; }
+    #mb-contact-form textarea:focus { border-color: #7cb342; }
     #mb-contact-form textarea { height: 70px; }
     #mb-contact-submit {
-      background: #2563eb; color: #fff; border: none;
+      background: #7cb342; color: #fff; border: none;
       padding: 9px; border-radius: 8px; font-size: 13px;
       font-weight: 600; cursor: pointer; font-family: inherit;
     }
-    #mb-contact-submit:hover { background: #1d4ed8; }
+    #mb-contact-submit:hover { background: #689f38; }
     #mb-contact-submit:disabled { background: #94a3b8; cursor: not-allowed; }
 
     #mb-chat-input-row {
@@ -209,13 +209,13 @@
       max-height: 100px;
       overflow-y: auto;
     }
-    #mb-chat-input:focus { border-color: #2563eb; }
+    #mb-chat-input:focus { border-color: #7cb342; }
     #mb-chat-send {
-      background: #2563eb; color: #fff; border: none;
+      background: #7cb342; color: #fff; border: none;
       border-radius: 8px; padding: 0 14px; cursor: pointer;
       flex-shrink: 0; display: flex; align-items: center;
     }
-    #mb-chat-send:hover { background: #1d4ed8; }
+    #mb-chat-send:hover { background: #689f38; }
     #mb-chat-send:disabled { background: #94a3b8; cursor: not-allowed; }
     #mb-chat-send svg { width: 18px; height: 18px; fill: #fff; }
 
