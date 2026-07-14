@@ -42,3 +42,6 @@ PROPOSAL.md
 # Local working files — not for the repo
 memory/
 screenshots/
+chat-widget/console-paste-test.js
+chat-widget/wpcode-snippet-TEST-JS-ONLY.js
+chat-widget/wpcode-snippet-TEST-leftside.html
