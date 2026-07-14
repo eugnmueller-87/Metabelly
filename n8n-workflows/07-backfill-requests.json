@@ -44,14 +44,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
-        "authentication": "none",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "x-api-key",
-              "value": "={{ $vars.CLAUDE_API_KEY }}"
-            },
             {
               "name": "anthropic-version",
               "value": "2023-06-01"
@@ -64,7 +61,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-haiku-4-5',\n  max_tokens: 256,\n  system: 'You are an email classifier for Metabelly, a Croatian supplement brand. Classify emails and detect the language the customer wrote in. Return ONLY valid JSON — no other text, no markdown.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-sonnet-5',\n  max_tokens: 256,\n  system: 'You are an email classifier for Metabelly, a Croatian supplement brand. Classify emails and detect the language the customer wrote in. Return ONLY valid JSON — no other text, no markdown, no code fences.',\n  messages: [\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.from + '\\nBody: ' + $json.bodySnippet + '\\n\\nRespond with ONLY this JSON:\\n{\"category\": \"ORDER|FAQ|MEDICAL|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"summary\": \"one sentence in English\", \"language\": \"HR|EN|OTHER\"}'\n    }\n  ]\n}) }}",
         "options": {}
       },
       "id": "classify-claude",
@@ -75,7 +72,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const input = $input.all()[i].json;\n  const prev = $('Parse Email').all()[i].json;\n\n  let category = 'FAQ', priority = 'P3', summary = '', language = 'HR';\n  try {\n    const content = input.content[0].text;\n    const parsed = JSON.parse(content);\n    category = parsed.category || 'FAQ';\n    priority = parsed.priority || 'P3';\n    summary = parsed.summary || '';\n    language = parsed.language || 'HR';\n  } catch(e) {}\n\n  results.push({ json: { ...prev, category, priority, summary, language } });\n}\n\nreturn results;"
+        "jsCode": "const results = [];\n\nfor (let i = 0; i < $input.all().length; i++) {\n  const input = $input.all()[i].json;\n  const prev = $('Parse Email').all()[i].json;\n\n  let category = 'FAQ', priority = 'P3', summary = '', language = 'HR';\n  try {\n    const payload = (input && input.content) ? input : (input && input.body && input.body.content) ? input.body : input;\n    const raw = payload.content[0].text;\n    const clean = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();\n    const parsed = JSON.parse(clean);\n    category = parsed.category || 'FAQ';\n    priority = parsed.priority || 'P3';\n    summary = parsed.summary || '';\n    language = parsed.language || 'HR';\n  } catch(e) {}\n\n  results.push({ json: { ...prev, category, priority, summary, language } });\n}\n\nreturn results;"
       },
       "id": "parse-classification",
       "name": "Parse Classification",

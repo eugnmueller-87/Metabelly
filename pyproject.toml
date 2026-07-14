@@ -114,6 +114,7 @@ ignore_errors = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = [
     "--cov=metabelly",
     "--cov-report=term-missing",
