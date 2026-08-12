@@ -1,0 +1,348 @@
+{
+  "name": "01-email-triage-mistral",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyXMinutes",
+              "value": 5
+            }
+          ]
+        },
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "q": "is:unread -subject:\"New message from\" -from:no-reply -from:noreply -from:wordpress -from:woocommerce"
+        },
+        "options": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger — agentmetabelly",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\nconst body = email.text || email.snippet || email.body || '';\nconst subject = email.subject || email.Subject || '';\nconst sender = email.from || email.From || email.sender || '';\nconst threadId = email.threadId || email.id || '';\nconst gmailId = email.id || email.messageId || '';\n\n// Skip Elementor/WooCommerce/WordPress automated notifications\nconst skipPatterns = [\n  /new message from/i,\n  /nova narud[žz]ba/i,\n  /woocommerce/i,\n  /wordpress/i,\n  /elementor/i,\n  /no-?reply/i,\n  /powered by elementor/i\n];\n\nconst isAutomated = skipPatterns.some(p => p.test(subject) || p.test(sender));\n\nif (isAutomated) {\n  throw new Error('SKIP: automated notification — ' + subject);\n}\n\nreturn [{\n  json: {\n    gmailId,\n    threadId,\n    sender,\n    subject,\n    body: body.substring(0, 2000)\n  }\n}];"
+      },
+      "id": "extract-email",
+      "name": "Extract Email Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'mistral-medium-latest',\n  max_tokens: 512,\n  response_format: { type: 'json_object' },\n  messages: [\n    {\n      role: 'system',\n      content: 'You are Luka, an AI assistant for Metabelly (Croatian gut health brand). Classify customer emails and write auto-replies using ONLY the knowledge base below.\\n\\nKNOWLEDGE BASE (answer ONLY from this — never improvise):\\nMetabelly Fiber 300g = 34,00 €, 30 porcija × 10g, rezistentni dekstrin iz kukuruznog škroba, bez alergena, neutralan okus.\\nFamily Pack 3×300g = 96,00 € (promo) / 102,00 € (regular).\\nMicrobiome Analysis Standard = 349,00 € (kit, 16S rRNA, izvještaj, 1h konzultacija, rezultati 3-4 tjedna).\\nMicrobiome Analysis Premium = 548,00 € (Standard + ponovna analiza nakon 6mj., 3 konzultacije, praćenje napretka).\\nNutrition 10g: 20 kcal, min. 8,2g vlakana. 20g: 40 kcal, min. 16,4g vlakana.\\nKorištenje: 10g u 200ml hladnog/mlakog negaziranog napitka, 10s, promiješati, odmah konzumirati. Ujutro ili između obroka. Max 20g/dan.\\nIzbjegavati: tople napitke, gazirana pića.\\nNadutost: krenuti postupno, više vode; ako traje — liječnik.\\nDostava: besplatna, DPD, 1-3 radna dana. Bez dostave vikendom.\\nPlaćanje: kreditna/debitna kartica ili online uplatnica.\\nPovrat: 15 dana od primitka. Otvoreni Fiber OK. Analiza nije podobna za povrat.\\nPopust: 10% uz newsletter.\\nKontakt: support@metabelly.com | metabelly.com/kontakt/\\nSpecijalne grupe: trudnoća (konzultacija s ginekologom), dojenje/lijekovi (liječnik), djeca (pedijatar), Crohn/kolitis/celijakija (liječnik).\\nNIKADA ne davati medicinske dijagnoze ni preporuke za terapiju.\\n\\nLANGUAGE RULE:\\n- Detect the language of the customer email\\n- If Croatian (HR): write auto_reply in Croatian\\n- If English (EN): write auto_reply in English\\n- Match the customer language exactly\\n\\nCATEGORIES:\\n- FAQ: product questions, ingredients, dosage, delivery, price, usage\\n- MEDICAL: health conditions, symptoms, medication, IBS, Crohn\\'s, pregnancy\\n- ORDER: shipping, tracking, returns, payment issues, order problems\\n- BUSINESS: wholesale, partnerships, press, collaboration\\n- URGENT: distress, emergency\\n\\nPRIORITY:\\n- P1: emergency/distress\\n- P2: needs human (medical, order, business)\\n- P3: routine FAQ that can be auto-answered\\n\\nAUTO-REPLY RULES:\\n- Only set requires_human=false and write auto_reply for clear P3 FAQ questions\\n- Auto-reply must use ONLY information from the knowledge base above\\n- Never improvise or add information not in the knowledge base\\n- For anything medical, order-related, or unclear: requires_human=true, auto_reply=\\'\\'\\n- End every auto-reply with: HR=\\'Za sva ostala pitanja obratite nam se na support@metabelly.com\\' / EN=\\'For any other questions contact us at support@metabelly.com\\'\\n\\nReturn ONLY valid JSON — no markdown, no code fences, no extra text:\\n{\"category\": \"FAQ|MEDICAL|ORDER|BUSINESS|URGENT\", \"priority\": \"P1|P2|P3\", \"language\": \"HR|EN\", \"summary\": \"one sentence in English\", \"requires_human\": true, \"suggested_action\": \"short action for the team\", \"auto_reply\": \"\"}'\n    },\n    {\n      role: 'user',\n      content: 'Subject: ' + $json.subject + '\\nFrom: ' + $json.sender + '\\nBody: ' + $json.body\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "classify-claude",
+      "name": "Luka — Classify with Mistral",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst payload = (response && response.choices) ? response : (response && response.body && response.body.choices) ? response.body : response;\nlet classification;\ntry {\n  const raw = payload.choices[0].message.content;\n  const clean = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();\n  classification = JSON.parse(clean);\n} catch(e) {\n  classification = {\n    category: 'FAQ',\n    priority: 'P2',\n    language: 'HR',\n    summary: 'Could not parse classification',\n    requires_human: true,\n    suggested_action: 'Manual review needed',\n    auto_reply: ''\n  };\n}\n\nconst emailData = $('Extract Email Fields').first().json;\n\nconst webhookMap = {\n  MEDICAL: $env.SLACK_WEBHOOK_MEDICAL,\n  ORDER: $env.SLACK_WEBHOOK_ORDER,\n  BUSINESS: $env.SLACK_WEBHOOK_BUSINESS,\n  FAQ: $env.SLACK_WEBHOOK_FAQ,\n  URGENT: $env.SLACK_WEBHOOK_URGENT\n};\n\nconst priorityEmoji = { P1: '🚨', P2: '⚠️', P3: 'ℹ️' };\nconst emoji = priorityEmoji[classification.priority] || 'ℹ️';\nconst urgentPrefix = classification.priority === 'P1' ? '🚨 *HITNO / URGENT* 🚨\\n' : '';\n\nconst slackWebhook = webhookMap[classification.category] || webhookMap['FAQ'];\nconst gmailLink = 'https://mail.google.com/mail/u/0/#inbox/' + emailData.threadId;\nconst slackMessage = urgentPrefix + emoji + ' *Nova poruka — ' + classification.category + '* (' + classification.priority + ')\\n*Od:* ' + emailData.sender + '\\n*Predmet:* ' + emailData.subject + '\\n*Sažetak:* ' + classification.summary + '\\n*Akcija:* ' + classification.suggested_action + '\\n*Auto-odgovor:* ' + (classification.requires_human ? 'Ne — čeka odgovor' : 'Da') + '\\n<' + gmailLink + '|📧 Otvori i odgovori u Gmailu>';\n\nconst canAutoReply = !classification.requires_human && !!classification.auto_reply;\n\nreturn [{ json: { \n  ...emailData, \n  ...classification,\n  slackWebhook,\n  urgentWebhook: $env.SLACK_WEBHOOK_URGENT,\n  slackMessage,\n  autoReply: classification.auto_reply || '',\n  isP1: classification.priority === 'P1',\n  canAutoReply\n} }];"
+      },
+      "id": "parse-result",
+      "name": "Parse & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.slackWebhook }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.slackMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack Channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        300
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "is-p1",
+              "leftValue": "={{ $('Parse & Prepare').first().json.isP1 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-p1",
+      "name": "Is P1 Urgent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Parse & Prepare').first().json.urgentWebhook }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=🚨 *P1 ALERT — Immediate attention required*\n*Od:* {{ $('Parse & Prepare').first().json.sender }}\n*Predmet:* {{ $('Parse & Prepare').first().json.subject }}\n*Sažetak:* {{ $('Parse & Prepare').first().json.summary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alert-urgent",
+      "name": "Alert #triage-urgent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        120
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "can-reply",
+              "leftValue": "={{ $('Parse & Prepare').first().json.canAutoReply }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-autoreply",
+      "name": "Can Auto-Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Parse & Prepare').first().json.gmailId }}",
+        "threadId": "={{ $('Parse & Prepare').first().json.threadId }}",
+        "message": "={{ $('Parse & Prepare').first().json.autoReply }}",
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Send Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        340
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_FAQ }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=✅ Auto-reply sent\n*Od:* {{ $('Parse & Prepare').first().json.sender }}\n*Predmet:* {{ $('Parse & Prepare').first().json.subject }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-fyi",
+      "name": "Slack FYI — Reply Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        340
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Gmail Trigger — agentmetabelly": {
+      "main": [
+        [
+          {
+            "node": "Extract Email Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email Fields": {
+      "main": [
+        [
+          {
+            "node": "Luka — Classify with Mistral",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Prepare": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Slack Channel": {
+      "main": [
+        [
+          {
+            "node": "Is P1 Urgent?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Can Auto-Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is P1 Urgent?": {
+      "main": [
+        [
+          {
+            "node": "Alert #triage-urgent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Can Auto-Reply?": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Gmail Reply": {
+      "main": [
+        [
+          {
+            "node": "Slack FYI — Reply Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Luka — Classify with Mistral": {
+      "main": [
+        [
+          {
+            "node": "Parse & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
